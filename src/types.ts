@@ -3,12 +3,19 @@
  */
 
 export interface Env {
+  // Legacy / fallback credentials (Private Integration token)
   GHL_API_KEY: string;
   GHL_LOCATION_ID: string;
+
+  // GHL OAuth App credentials (single app — all scopes, Agency-only install, white-label)
+  GHL_CLIENT_ID: string;
+  GHL_CLIENT_SECRET: string;
+
   MCP_OBJECT: DurableObjectNamespace;
   GHL_DB: D1Database;
   OAUTH_KV: KVNamespace;
   OAUTH_PROVIDER: any;
+  ERROR_WEBHOOK_URL?: string;
 }
 
 export interface SubAccount {

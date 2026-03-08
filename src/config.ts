@@ -7,6 +7,7 @@ export const CONFIG = {
     BASE_URL: "https://services.leadconnectorhq.com",
     VERSION_STANDARD: "2021-07-28" as const,
     VERSION_LEGACY: "2021-04-15" as const,
+    LOCATION_TOKEN_ENDPOINT: "https://services.leadconnectorhq.com/oauth/locationToken",
   },
   MCP: {
     NAME: "GoHighLevel MCP Server",

@@ -1,4 +1,5 @@
-import type { SubAccount } from "../types";
+import type { Env, SubAccount } from "../types";
+import { CONFIG } from "../config";
 
 export async function initDb(db: D1Database) {
   await db
@@ -35,4 +36,53 @@ export async function getAccountByName(db: D1Database, name: string): Promise<Su
     .prepare("SELECT * FROM sub_accounts WHERE LOWER(name) LIKE LOWER(?)")
     .bind(`%${name}%`)
     .first<SubAccount>();
+}
+
+/**
+ * Exchange an agency-level access token for a location-scoped access token.
+ *
+ * GHL endpoint: POST /oauth/locationToken
+ *
+ * Reference: https://highlevel.stoplight.io/docs/integrations/0f4b1cb7b7540-get-location-access-token
+ *
+ * @param locationId  GHL Location ID to derive a token for
+ * @param agencyToken  Agency-level Bearer token (obtained via OAuth flow)
+ * @param companyId   GHL Company/Agency ID (from token response companyId field)
+ * @returns location-scoped access_token string
+ * @throws Error if the GHL API returns a non-200 response
+ */
+export async function getSubAccountTokenFromAgency(
+  locationId: string,
+  agencyToken: string,
+  companyId: string
+): Promise<string> {
+  const body = new URLSearchParams({ companyId, locationId });
+  const response = await fetch(CONFIG.API.LOCATION_TOKEN_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Accept": "application/json",
+      "Authorization": `Bearer ${agencyToken}`,
+      "Version": CONFIG.API.VERSION_STANDARD,
+    },
+    body: body.toString(),
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => "(no body)");
+    throw new Error(
+      `getSubAccountTokenFromAgency: GHL returned ${response.status} - ${text}`
+    );
+  }
+
+  const data = (await response.json()) as { access_token?: string; token?: string };
+  const token = data.access_token ?? data.token;
+
+  if (!token) {
+    throw new Error(
+      `getSubAccountTokenFromAgency: No token in GHL response - ${JSON.stringify(data)}`
+    );
+  }
+
+  return token;
 }
