@@ -175,24 +175,35 @@ export async function upsertSubAccountFromOAuth(
   locationId: string,
   name: string,
   locationToken: string,
-  companyId: string
+  companyId: string,
+  refreshToken?: string,
+  expiresAt?: number
 ): Promise<void> {
   await db
     .prepare(
-      `INSERT INTO sub_accounts (id, name, api_key, account_type, is_default, notes, updated_at)
-       VALUES (?, ?, ?, 'oauth_location', 0, ?, datetime('now'))
+      `INSERT INTO sub_accounts (id, name, api_key, account_type, is_default, notes, refresh_token, expires_at, updated_at)
+       VALUES (?, ?, ?, 'oauth_location', 0, ?, ?, ?, datetime('now'))
        ON CONFLICT(id) DO UPDATE SET
          name = excluded.name,
          api_key = excluded.api_key,
          account_type = excluded.account_type,
          notes = excluded.notes,
+         refresh_token = COALESCE(excluded.refresh_token, sub_accounts.refresh_token),
+         expires_at = COALESCE(excluded.expires_at, sub_accounts.expires_at),
          updated_at = datetime('now')`
     )
-    .bind(locationId, name, locationToken, `company:${companyId}`)
+    .bind(
+      locationId,
+      name,
+      locationToken,
+      `company:${companyId}`,
+      refreshToken ?? null,
+      expiresAt ?? null
+    )
     .run();
 }
 
-export async function initDb(db: D1Database) {
+export async function initDb(db: D1Database): Promise<void> {
   await db
     .prepare(
       `CREATE TABLE IF NOT EXISTS sub_accounts (
@@ -202,11 +213,26 @@ export async function initDb(db: D1Database) {
     account_type TEXT DEFAULT 'sub_account',
     is_default INTEGER DEFAULT 0,
     notes TEXT,
+    refresh_token TEXT,
+    expires_at INTEGER,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
   )`
     )
     .run();
+
+  // Migrate existing tables that predate the refresh_token / expires_at columns.
+  // SQLite throws "duplicate column name" if the column already exists — swallow that error.
+  for (const col of [
+    "ALTER TABLE sub_accounts ADD COLUMN refresh_token TEXT",
+    "ALTER TABLE sub_accounts ADD COLUMN expires_at INTEGER",
+  ]) {
+    try {
+      await db.prepare(col).run();
+    } catch {
+      // Column already exists — safe to ignore.
+    }
+  }
 }
 
 export async function getDefaultAccount(db: D1Database): Promise<SubAccount | null> {
@@ -227,6 +253,79 @@ export async function getAccountByName(db: D1Database, name: string): Promise<Su
     .prepare("SELECT * FROM sub_accounts WHERE LOWER(name) LIKE LOWER(?)")
     .bind(`%${name}%`)
     .first<SubAccount>();
+}
+
+/**
+ * Returns true when the stored token is expired or within 5 minutes of expiry.
+ * Static Private Integration tokens have no expires_at and never expire.
+ */
+export function isTokenExpired(account: SubAccount): boolean {
+  if (!account.expires_at) return false;
+  return Math.floor(Date.now() / 1000) > account.expires_at - 300;
+}
+
+/**
+ * Refresh the location-scoped OAuth access token for a given locationId using its
+ * stored refresh_token. Updates D1 with the new access_token, refresh_token, and
+ * expires_at, then returns the new access_token.
+ */
+export async function refreshLocationToken(env: Env, locationId: string): Promise<string> {
+  const account = await getAccountById(env.GHL_DB, locationId);
+  if (!account) {
+    throw new Error(`refreshLocationToken: No sub_account found for locationId ${locationId}`);
+  }
+  if (!account.refresh_token) {
+    throw new Error(`refreshLocationToken: No refresh token available for ${locationId}`);
+  }
+
+  const body = new URLSearchParams({
+    client_id: env.GHL_CLIENT_ID,
+    client_secret: env.GHL_CLIENT_SECRET,
+    grant_type: "refresh_token",
+    refresh_token: account.refresh_token,
+    user_type: "Location",
+  });
+
+  const res = await fetch(`${CONFIG.API.BASE_URL}/oauth/token`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Accept: "application/json",
+    },
+    body: body.toString(),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "(no body)");
+    throw new Error(`refreshLocationToken: GHL returned ${res.status} — ${text}`);
+  }
+
+  const data = (await res.json()) as {
+    access_token?: string;
+    refresh_token?: string;
+    expires_in?: number;
+  };
+
+  if (!data.access_token || !data.refresh_token) {
+    throw new Error(`refreshLocationToken: Incomplete response — ${JSON.stringify(data)}`);
+  }
+
+  const newExpiresAt = Math.floor(Date.now() / 1000) + (data.expires_in ?? 86400);
+
+  // Derive companyId from the stored notes field ("company:<id>") or fall back to empty string.
+  const companyId = account.notes?.startsWith("company:") ? account.notes.slice(8) : "";
+
+  await upsertSubAccountFromOAuth(
+    env.GHL_DB,
+    locationId,
+    account.name,
+    data.access_token,
+    companyId,
+    data.refresh_token,
+    newExpiresAt
+  );
+
+  return data.access_token;
 }
 
 /**

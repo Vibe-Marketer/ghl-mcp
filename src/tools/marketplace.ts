@@ -123,4 +123,39 @@ export function registerMarketplaceTools(server: McpServer, env: Env) {
       }
     }
   );
+
+  server.tool(
+    "ghl_marketplace_get_rebilling_config",
+    "Get the rebilling configuration for a marketplace app.",
+    {
+      companyId: z.string().describe("Company ID"),
+      appId: z.string().describe("App ID"),
+    },
+    async ({ companyId, appId }) => {
+      try {
+        const client = await resolveClient(env);
+        const result = await client.marketplace.getRebillingConfig(companyId, appId);
+        return ok(JSON.stringify(result, null, 2));
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_marketplace_migrate_external_auth",
+    "Migrate external authentication data for a marketplace app.",
+    {
+      data: z.record(z.any()).describe("External auth migration data"),
+    },
+    async ({ data }) => {
+      try {
+        const client = await resolveClient(env);
+        const result = await client.marketplace.migrateExternalAuth(data);
+        return ok(`External auth migrated!\n\n${JSON.stringify(result, null, 2)}`);
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
 }

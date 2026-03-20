@@ -1253,4 +1253,130 @@ export function registerPaymentsTools(server: McpServer, env: Env) {
       }
     }
   );
+
+  // ==========================================================
+  // CUSTOM PROVIDER / INTEGRATIONS
+  // ==========================================================
+
+  server.tool(
+    "ghl_create_integration_provider",
+    "Create a whitelabel payment integration provider.",
+    {
+      body: z.record(z.any()).describe("Integration provider data"),
+      locationId: z.string().optional().describe("Target location"),
+    },
+    async ({ body, locationId }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        const result = await client.payments.createIntegrationProvider(body);
+        return ok(`Integration provider created!\n\n${JSON.stringify(result, null, 2)}`);
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_list_integration_providers",
+    "List whitelabel payment integration providers for a location.",
+    {
+      locationId: z.string().optional().describe("Target location"),
+    },
+    async ({ locationId }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        const result = await client.payments.listIntegrationProviders(locationId);
+        return ok(JSON.stringify(result, null, 2));
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_create_custom_integration",
+    "Connect a custom payment integration for a location.",
+    {
+      body: z.record(z.any()).describe("Custom integration data"),
+      locationId: z.string().optional().describe("Target location"),
+    },
+    async ({ body, locationId }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        const result = await client.payments.createCustomIntegration(body);
+        return ok(`Custom integration connected!\n\n${JSON.stringify(result, null, 2)}`);
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_delete_custom_integration",
+    "Disconnect a custom payment integration for a location.",
+    {
+      locationId: z.string().optional().describe("Target location"),
+    },
+    async ({ locationId }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        const result = await client.payments.deleteCustomIntegration(locationId);
+        return ok(`Custom integration disconnected!\n\n${JSON.stringify(result, null, 2)}`);
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_get_provider_config",
+    "Get the custom payment provider configuration for a location.",
+    {
+      locationId: z.string().optional().describe("Target location"),
+    },
+    async ({ locationId }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        const result = await client.payments.getProviderConfig(locationId);
+        return ok(JSON.stringify(result, null, 2));
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_create_provider_config",
+    "Create a custom payment provider configuration.",
+    {
+      body: z.record(z.any()).describe("Provider config data"),
+      locationId: z.string().optional().describe("Target location"),
+    },
+    async ({ body, locationId }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        const result = await client.payments.createProviderConfig(body);
+        return ok(`Provider config created!\n\n${JSON.stringify(result, null, 2)}`);
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_disconnect_provider_config",
+    "Disconnect and delete the custom payment provider configuration for a location.",
+    {
+      locationId: z.string().optional().describe("Target location"),
+    },
+    async ({ locationId }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        const result = await client.payments.disconnectProviderConfig(locationId);
+        return ok(`Provider config disconnected!\n\n${JSON.stringify(result, null, 2)}`);
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
 }

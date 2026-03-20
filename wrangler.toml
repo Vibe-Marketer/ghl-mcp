@@ -8,24 +8,18 @@ compatibility_flags = ["nodejs_compat"]
 # Secrets — set via `wrangler secret put <NAME>`, never hardcode values
 # -----------------------------------------------------------------------
 #
-# Legacy / fallback (sub-account scoped Private Integration token):
-#   GHL_API_KEY          — Private Integration token for the default sub-account
-#   GHL_LOCATION_ID      — Default GHL Location ID
-#
-# App 1 — Agency Private Integration
-#   Scope: snapshots, companies, custom menus, users, locations, SaaS
-#   GHL_AGENCY_CLIENT_ID     — Client ID of the agency-scoped GHL app
-#   GHL_AGENCY_CLIENT_SECRET — Client Secret of the agency-scoped GHL app
-#
-# App 2 — Sub-Account Private Integration
-#   Scope: contacts, conversations, calendars, payments, opportunities,
-#          products, social, marketing, funnels, blogs, custom objects,
-#          AI agents, knowledge base, and all other sub-account tools
-#   GHL_SUB_CLIENT_ID        — Client ID of the sub-account-scoped GHL app
-#   GHL_SUB_CLIENT_SECRET    — Client Secret of the sub-account-scoped GHL app
+# Required secrets (currently deployed):
+#   ADMIN_PASSWORD       — Password for the /admin panel
+#   ADMIN_PIN            — PIN for API admin routes (X-Admin-Pin header)
+#   GHL_CLIENT_ID        — OAuth app Client ID
+#   GHL_CLIENT_SECRET    — OAuth app Client Secret
 #
 # Optional:
 #   ERROR_WEBHOOK_URL    — Webhook URL to receive error reports
+#
+# NOT USED (removed — all accounts stored in D1 per-location):
+#   GHL_API_KEY          — Legacy fallback, not set
+#   GHL_LOCATION_ID      — Legacy fallback, not set
 # -----------------------------------------------------------------------
 
 [durable_objects]

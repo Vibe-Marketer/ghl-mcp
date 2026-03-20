@@ -80,5 +80,21 @@ export function saasMethods(client: BaseGHLClient) {
         version: "2021-07-28",
       });
     },
+
+    // ========== WALLET BALANCE ==========
+
+    async getLocationWalletBalance(locationId: string) {
+      return client.request<any>("GET", `/saas-api/public-api/wallet-balance`, {
+        query: { locationId },
+        version: "2021-07-28",
+      });
+    },
+
+    async updateLocationWalletBalance(locationId: string, data: any) {
+      return client.request<any>("POST", `/saas-api/public-api/wallet-balance`, {
+        body: { ...data, locationId },
+        version: "2021-07-28",
+      });
+    },
   };
 }

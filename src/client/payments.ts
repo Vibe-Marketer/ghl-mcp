@@ -594,5 +594,56 @@ export function paymentMethods(client: BaseGHLClient) {
         version: "2021-07-28",
       });
     },
+
+    // ========== CUSTOM PROVIDER / INTEGRATIONS ==========
+
+    async createIntegrationProvider(data: any) {
+      return client.request<any>("POST", `/payments/integrations/provider/whitelabel`, {
+        body: data,
+        version: "2021-07-28",
+      });
+    },
+
+    async listIntegrationProviders(locationId?: string) {
+      return client.request<any>("GET", `/payments/integrations/provider/whitelabel`, {
+        query: { altId: locationId || client.locationId, altType: "location" },
+        version: "2021-07-28",
+      });
+    },
+
+    async createCustomIntegration(data: any) {
+      return client.request<any>("POST", `/payments/custom-provider/connect`, {
+        body: data,
+        version: "2021-07-28",
+      });
+    },
+
+    async deleteCustomIntegration(locationId?: string) {
+      return client.request<any>("DELETE", `/payments/custom-provider/disconnect`, {
+        query: { altId: locationId || client.locationId, altType: "location" },
+        version: "2021-07-28",
+      });
+    },
+
+    async getProviderConfig(locationId?: string) {
+      return client.request<any>("GET", `/payments/custom-provider/provider`, {
+        query: { altId: locationId || client.locationId, altType: "location" },
+        version: "2021-07-28",
+      });
+    },
+
+    async createProviderConfig(data: any) {
+      return client.request<any>("POST", `/payments/custom-provider/provider`, {
+        body: data,
+        version: "2021-07-28",
+      });
+    },
+
+    async disconnectProviderConfig(locationId?: string) {
+      return client.request<any>("DELETE", `/payments/custom-provider/provider`, {
+        query: { altId: locationId || client.locationId, altType: "location" },
+        version: "2021-07-28",
+      });
+    },
   };
 }

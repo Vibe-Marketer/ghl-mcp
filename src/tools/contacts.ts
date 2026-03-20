@@ -66,6 +66,10 @@ export function registerContactsTools(server: McpServer, env: Env) {
       tags: z.array(z.string()).optional().describe("Tags to apply"),
       source: z.string().optional().describe("Lead source"),
       locationId: z.string().optional().describe("Target location"),
+      customFields: z.array(z.object({
+        id: z.string().describe("Custom field ID"),
+        field_value: z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]).describe("Field value"),
+      })).optional().describe("Custom field values to set. Each entry needs 'id' (custom field ID) and 'field_value'."),
     },
     async (args) => {
       try {
@@ -95,6 +99,10 @@ export function registerContactsTools(server: McpServer, env: Env) {
       timezone: z.string().optional(),
       tags: z.array(z.string()).optional(),
       dnd: z.boolean().optional().describe("Do Not Disturb flag"),
+      customFields: z.array(z.object({
+        id: z.string().describe("Custom field ID"),
+        field_value: z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]).describe("Field value"),
+      })).optional().describe("Custom field values to set. Each entry needs 'id' (custom field ID) and 'field_value'."),
     },
     async ({ contactId, ...data }) => {
       try {

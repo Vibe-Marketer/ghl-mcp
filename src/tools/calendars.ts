@@ -745,4 +745,364 @@ export function registerCalendarsTools(server: McpServer, env: Env) {
       }
     }
   );
+
+  // ========== AVAILABILITY SCHEDULES ==========
+
+  server.tool(
+    "ghl_list_availability_schedules",
+    "List availability schedules for a user.",
+    { userId: z.string().describe("User ID to list schedules for") },
+    async ({ userId }) => {
+      try {
+        const client = await resolveClient(env);
+        const result = await client.calendars.listAvailabilitySchedules(userId);
+        return ok(JSON.stringify(result, null, 2));
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_get_availability_schedule",
+    "Get a specific availability schedule by ID.",
+    { scheduleId: z.string().describe("Availability schedule ID") },
+    async ({ scheduleId }) => {
+      try {
+        const client = await resolveClient(env);
+        const result = await client.calendars.getAvailabilitySchedule(scheduleId);
+        return ok(JSON.stringify(result, null, 2));
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_create_availability_schedule",
+    "Create a new availability schedule.",
+    {
+      name: z.string().optional().describe("Schedule name"),
+      locationId: z.string().optional().describe("Target location"),
+      timezone: z.string().optional().describe("Timezone for the schedule"),
+    },
+    async (args) => {
+      try {
+        const client = await resolveClient(env, args.locationId);
+        const result = await client.calendars.createAvailabilitySchedule(args);
+        return ok(`Availability schedule created!\n\n${JSON.stringify(result, null, 2)}`);
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_update_availability_schedule",
+    "Update an existing availability schedule.",
+    {
+      scheduleId: z.string().describe("Availability schedule ID"),
+      name: z.string().optional().describe("Schedule name"),
+      timezone: z.string().optional().describe("Timezone for the schedule"),
+    },
+    async ({ scheduleId, ...data }) => {
+      try {
+        const client = await resolveClient(env);
+        const result = await client.calendars.updateAvailabilitySchedule(scheduleId, data);
+        return ok(`Availability schedule updated!\n\n${JSON.stringify(result, null, 2)}`);
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_delete_availability_schedule",
+    "Delete an availability schedule by ID.",
+    { scheduleId: z.string().describe("Availability schedule ID to delete") },
+    async ({ scheduleId }) => {
+      try {
+        const client = await resolveClient(env);
+        await client.calendars.deleteAvailabilitySchedule(scheduleId);
+        return ok(`Availability schedule ${scheduleId} deleted.`);
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_add_calendar_to_schedule",
+    "Add a calendar to an availability schedule.",
+    {
+      scheduleId: z.string().describe("Availability schedule ID"),
+      calendarId: z.string().optional().describe("Calendar ID to add"),
+    },
+    async ({ scheduleId, ...data }) => {
+      try {
+        const client = await resolveClient(env);
+        const result = await client.calendars.addCalendarToSchedule(scheduleId, data);
+        return ok(`Calendar added to schedule!\n\n${JSON.stringify(result, null, 2)}`);
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_remove_calendar_from_schedule",
+    "Remove a calendar from an availability schedule.",
+    {
+      scheduleId: z.string().describe("Availability schedule ID"),
+      calendarId: z.string().describe("Calendar ID to remove"),
+    },
+    async ({ scheduleId, calendarId }) => {
+      try {
+        const client = await resolveClient(env);
+        await client.calendars.removeCalendarFromSchedule(scheduleId, calendarId);
+        return ok(`Calendar ${calendarId} removed from schedule ${scheduleId}.`);
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_create_calendar_schedule",
+    "Create availability hours/schedule for a specific calendar.",
+    {
+      calendarId: z.string().describe("Calendar ID"),
+      openHours: z.array(z.any()).optional().describe("Open hours configuration array"),
+    },
+    async ({ calendarId, ...data }) => {
+      try {
+        const client = await resolveClient(env);
+        const result = await client.calendars.createCalendarSchedule(calendarId, data);
+        return ok(`Calendar schedule created!\n\n${JSON.stringify(result, null, 2)}`);
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_get_calendar_schedule",
+    "Get the availability schedule for a specific calendar.",
+    { calendarId: z.string().describe("Calendar ID") },
+    async ({ calendarId }) => {
+      try {
+        const client = await resolveClient(env);
+        const result = await client.calendars.getCalendarSchedule(calendarId);
+        return ok(JSON.stringify(result, null, 2));
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_update_calendar_schedule",
+    "Update the availability schedule for a specific calendar.",
+    {
+      calendarId: z.string().describe("Calendar ID"),
+      openHours: z.array(z.any()).optional().describe("Open hours configuration array"),
+    },
+    async ({ calendarId, ...data }) => {
+      try {
+        const client = await resolveClient(env);
+        const result = await client.calendars.updateCalendarSchedule(calendarId, data);
+        return ok(`Calendar schedule updated!\n\n${JSON.stringify(result, null, 2)}`);
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  // ========== SERVICE BOOKINGS ==========
+
+  server.tool(
+    "ghl_list_service_bookings",
+    "List service bookings in a location.",
+    {
+      locationId: z.string().optional().describe("Target location"),
+      contactId: z.string().optional().describe("Filter by contact ID"),
+      startTime: z.string().optional().describe("Filter start time (ISO 8601)"),
+      endTime: z.string().optional().describe("Filter end time (ISO 8601)"),
+    },
+    async ({ locationId, ...rest }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        const result = await client.calendars.listServiceBookings({ locationId, ...rest });
+        return ok(JSON.stringify(result, null, 2));
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_create_service_booking",
+    "Create a new service booking.",
+    {
+      locationId: z.string().optional().describe("Target location"),
+      calendarId: z.string().optional().describe("Calendar ID for the service"),
+      contactId: z.string().optional().describe("Contact ID"),
+      startTime: z.string().optional().describe("Booking start time (ISO 8601)"),
+      endTime: z.string().optional().describe("Booking end time (ISO 8601)"),
+      serviceId: z.string().optional().describe("Service ID"),
+    },
+    async ({ locationId, ...data }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        const result = await client.calendars.createServiceBooking({ locationId, ...data });
+        return ok(`Service booking created!\n\n${JSON.stringify(result, null, 2)}`);
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_get_service_booking",
+    "Get a specific service booking by ID.",
+    { bookingId: z.string().describe("Service booking ID") },
+    async ({ bookingId }) => {
+      try {
+        const client = await resolveClient(env);
+        const result = await client.calendars.getServiceBooking(bookingId);
+        return ok(JSON.stringify(result, null, 2));
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_update_service_booking",
+    "Update an existing service booking.",
+    {
+      bookingId: z.string().describe("Service booking ID"),
+      startTime: z.string().optional().describe("New start time (ISO 8601)"),
+      endTime: z.string().optional().describe("New end time (ISO 8601)"),
+      status: z.string().optional().describe("Booking status"),
+    },
+    async ({ bookingId, ...data }) => {
+      try {
+        const client = await resolveClient(env);
+        const result = await client.calendars.updateServiceBooking(bookingId, data);
+        return ok(`Service booking updated!\n\n${JSON.stringify(result, null, 2)}`);
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_delete_service_booking",
+    "Delete a service booking by ID.",
+    { bookingId: z.string().describe("Service booking ID to delete") },
+    async ({ bookingId }) => {
+      try {
+        const client = await resolveClient(env);
+        await client.calendars.deleteServiceBooking(bookingId);
+        return ok(`Service booking ${bookingId} deleted.`);
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  // ========== SERVICES CATALOG ==========
+
+  server.tool(
+    "ghl_list_services",
+    "List services in a location's service catalog.",
+    {
+      locationId: z.string().optional().describe("Target location"),
+      calendarId: z.string().optional().describe("Filter by calendar ID"),
+    },
+    async ({ locationId, ...rest }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        const result = await client.calendars.listServices({ locationId, ...rest });
+        return ok(JSON.stringify(result, null, 2));
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_create_service",
+    "Create a new service in the services catalog.",
+    {
+      locationId: z.string().optional().describe("Target location"),
+      name: z.string().optional().describe("Service name"),
+      description: z.string().optional().describe("Service description"),
+      durationMinutes: z.number().optional().describe("Service duration in minutes"),
+      price: z.number().optional().describe("Service price"),
+      calendarIds: z.array(z.string()).optional().describe("Associated calendar IDs"),
+    },
+    async ({ locationId, ...data }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        const result = await client.calendars.createService({ locationId, ...data });
+        return ok(`Service created!\n\n${JSON.stringify(result, null, 2)}`);
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_get_service",
+    "Get a specific service by ID.",
+    { serviceId: z.string().describe("Service ID") },
+    async ({ serviceId }) => {
+      try {
+        const client = await resolveClient(env);
+        const result = await client.calendars.getService(serviceId);
+        return ok(JSON.stringify(result, null, 2));
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_update_service",
+    "Update a service in the services catalog.",
+    {
+      serviceId: z.string().describe("Service ID"),
+      name: z.string().optional().describe("Service name"),
+      description: z.string().optional().describe("Service description"),
+      durationMinutes: z.number().optional().describe("Service duration in minutes"),
+      price: z.number().optional().describe("Service price"),
+      calendarIds: z.array(z.string()).optional().describe("Associated calendar IDs"),
+    },
+    async ({ serviceId, ...data }) => {
+      try {
+        const client = await resolveClient(env);
+        const result = await client.calendars.updateService(serviceId, data);
+        return ok(`Service updated!\n\n${JSON.stringify(result, null, 2)}`);
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_delete_service",
+    "Delete a service from the services catalog.",
+    { serviceId: z.string().describe("Service ID to delete") },
+    async ({ serviceId }) => {
+      try {
+        const client = await resolveClient(env);
+        await client.calendars.deleteService(serviceId);
+        return ok(`Service ${serviceId} deleted.`);
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
 }

@@ -6,7 +6,7 @@ import { ok, err, resolveClient } from "./_helpers";
 export function registerOpportunitiesTools(server: McpServer, env: Env) {
   server.tool(
     "ghl_search_opportunities",
-    "Search opportunities with optional filters: pipelineId, pipelineStageId, contactId, status, search text.",
+    "Search opportunities with optional filters: pipelineId, pipelineStageId, contactId, status, search text. Uses GET method for simple queries.",
     {
       pipelineId: z.string().optional().describe("Filter by pipeline ID"),
       pipelineStageId: z.string().optional().describe("Filter by pipeline stage ID"),
@@ -15,10 +15,33 @@ export function registerOpportunitiesTools(server: McpServer, env: Env) {
       q: z.string().optional().describe("Search text"),
       limit: z.string().optional().describe("Max results"),
       locationId: z.string().optional().describe("Target location"),
+      additionalDetails: z.object({
+        notes: z.boolean().optional().describe("Include notes"),
+        tasks: z.boolean().optional().describe("Include tasks"),
+        calendarEvents: z.boolean().optional().describe("Include calendar events"),
+        unReadConversations: z.boolean().optional().describe("Include unread conversations"),
+      }).optional().describe("Request additional details (notes, tasks, calendarEvents, unReadConversations). When provided, uses POST search for richer results."),
+      page: z.number().optional().describe("Page number (only with additionalDetails/POST search)"),
     },
-    async ({ pipelineId, pipelineStageId, contactId, status, q, limit, locationId }) => {
+    async ({ pipelineId, pipelineStageId, contactId, status, q, limit, locationId, additionalDetails, page }) => {
       try {
         const client = await resolveClient(env, locationId);
+
+        // Use POST search when additionalDetails are requested
+        if (additionalDetails) {
+          const result = await client.opportunities.searchOpportunitiesPost({
+            locationId,
+            query: q || contactId || pipelineId,
+            limit: limit ? parseInt(limit) : undefined,
+            page,
+            additionalDetails,
+          });
+          const opps = result.opportunities || [];
+          if (opps.length === 0) return ok("No opportunities found.");
+          return ok(`${opps.length} opportunity(ies):\n\n${JSON.stringify(opps, null, 2)}`);
+        }
+
+        // Default GET search
         const result = await client.opportunities.searchOpportunities({
           locationId,
           pipelineId,
@@ -33,11 +56,12 @@ export function registerOpportunitiesTools(server: McpServer, env: Env) {
         const summary = opps.map((o: any) => ({
           id: o.id,
           name: o.name,
-          value: o.value,
+          monetaryValue: o.monetaryValue,
           status: o.status,
           pipelineId: o.pipelineId,
           pipelineStageId: o.pipelineStageId,
           contactId: o.contactId,
+          assignedTo: o.assignedTo,
           createdAt: o.createdAt,
         }));
         return ok(`${opps.length} opportunity(ies):\n\n${JSON.stringify(summary, null, 2)}`);
@@ -67,17 +91,23 @@ export function registerOpportunitiesTools(server: McpServer, env: Env) {
     "Create a new sales opportunity.",
     {
       name: z.string().describe("Opportunity name"),
-      value: z.number().optional().describe("Deal value"),
       pipelineId: z.string().describe("Pipeline ID"),
       pipelineStageId: z.string().describe("Pipeline stage ID"),
       contactId: z.string().optional().describe("Associated contact ID"),
-      status: z.string().optional().describe("Status"),
+      monetaryValue: z.number().optional().describe("Deal monetary value"),
+      assignedTo: z.string().optional().describe("User ID to assign the opportunity to"),
+      status: z.string().optional().describe("Status (open, won, lost, abandoned)"),
+      customFields: z.array(z.object({
+        id: z.string().optional().describe("Custom field ID"),
+        key: z.string().optional().describe("Custom field key"),
+        field_value: z.unknown().describe("Custom field value (string, array, or object)"),
+      })).optional().describe("Custom field values"),
       locationId: z.string().optional().describe("Target location"),
     },
     async (args) => {
       try {
         const client = await resolveClient(env, args.locationId);
-        const result = await client.opportunities.createOpportunity(args);
+        const result = await client.opportunities.createOpportunity(args as any);
         return ok(`Opportunity created!\n\n${JSON.stringify(result, null, 2)}`);
       } catch (e: any) {
         return err(e);
@@ -90,15 +120,22 @@ export function registerOpportunitiesTools(server: McpServer, env: Env) {
     "Update an existing opportunity.",
     {
       opportunityId: z.string().describe("Opportunity ID"),
-      name: z.string().optional(),
-      value: z.number().optional(),
-      status: z.string().optional(),
-      pipelineStageId: z.string().optional(),
+      pipelineId: z.string().optional().describe("Move to different pipeline"),
+      name: z.string().optional().describe("Updated name"),
+      pipelineStageId: z.string().optional().describe("Move to different pipeline stage"),
+      status: z.string().optional().describe("Status (open, won, lost, abandoned)"),
+      monetaryValue: z.number().optional().describe("Deal monetary value"),
+      assignedTo: z.string().optional().describe("User ID to assign to"),
+      customFields: z.array(z.object({
+        id: z.string().optional().describe("Custom field ID"),
+        key: z.string().optional().describe("Custom field key"),
+        field_value: z.unknown().describe("Custom field value (string, array, or object)"),
+      })).optional().describe("Custom field values to update"),
     },
     async ({ opportunityId, ...data }) => {
       try {
         const client = await resolveClient(env);
-        const result = await client.opportunities.updateOpportunity(opportunityId, data);
+        const result = await client.opportunities.updateOpportunity(opportunityId, data as any);
         return ok(`Opportunity updated!\n\n${JSON.stringify(result, null, 2)}`);
       } catch (e: any) {
         return err(e);
@@ -123,15 +160,16 @@ export function registerOpportunitiesTools(server: McpServer, env: Env) {
 
   server.tool(
     "ghl_update_opportunity_status",
-    "Update the status of an opportunity.",
+    "Update the status of an opportunity (open, won, lost, abandoned).",
     {
       opportunityId: z.string().describe("Opportunity ID"),
-      status: z.string().describe("New status"),
+      status: z.string().describe("New status (open, won, lost, abandoned)"),
+      lostReasonId: z.string().optional().describe("Lost reason ID (required when status is 'lost')"),
     },
-    async ({ opportunityId, status }) => {
+    async ({ opportunityId, status, lostReasonId }) => {
       try {
         const client = await resolveClient(env);
-        const result = await client.opportunities.updateOpportunityStatus(opportunityId, status);
+        const result = await client.opportunities.updateOpportunityStatus(opportunityId, status, lostReasonId);
         return ok(`Opportunity status updated!\n\n${JSON.stringify(result, null, 2)}`);
       } catch (e: any) {
         return err(e);
@@ -181,74 +219,29 @@ export function registerOpportunitiesTools(server: McpServer, env: Env) {
 
   // ========== PIPELINE MANAGEMENT ==========
 
-  server.tool(
-    "ghl_create_pipeline",
-    "Create a new sales pipeline.",
-    {
-      name: z.string().describe("Pipeline name"),
-      stages: z.array(z.record(z.any())).optional().describe("Pipeline stages"),
-      locationId: z.string().optional().describe("Target location"),
-    },
-    async (args) => {
-      try {
-        const client = await resolveClient(env, args.locationId);
-        const result = await client.opportunities.createPipeline(args);
-        return ok(`Pipeline created!\n\n${JSON.stringify(result, null, 2)}`);
-      } catch (e: any) {
-        return err(e);
-      }
-    }
-  );
-
-  server.tool(
-    "ghl_update_pipeline",
-    "Update an existing pipeline.",
-    {
-      pipelineId: z.string().describe("Pipeline ID"),
-      name: z.string().optional().describe("Updated pipeline name"),
-      stages: z.array(z.record(z.any())).optional().describe("Updated pipeline stages"),
-      data: z.record(z.any()).optional().describe("Additional pipeline data"),
-    },
-    async ({ pipelineId, ...data }) => {
-      try {
-        const client = await resolveClient(env);
-        const result = await client.opportunities.updatePipeline(pipelineId, data);
-        return ok(`Pipeline updated!\n\n${JSON.stringify(result, null, 2)}`);
-      } catch (e: any) {
-        return err(e);
-      }
-    }
-  );
-
-  server.tool(
-    "ghl_delete_pipeline",
-    "Delete a pipeline by ID. WARNING: This cannot be undone.",
-    {
-      pipelineId: z.string().describe("Pipeline ID"),
-    },
-    async ({ pipelineId }) => {
-      try {
-        const client = await resolveClient(env);
-        await client.opportunities.deletePipeline(pipelineId);
-        return ok(`Pipeline ${pipelineId} deleted.`);
-      } catch (e: any) {
-        return err(e);
-      }
-    }
-  );
+  // ghl_create_pipeline, ghl_update_pipeline, ghl_delete_pipeline are DISABLED.
+  // GHL returns 401 for all pipeline write endpoints regardless of token type.
+  // Implementations preserved in src/tools/_disabled/pipeline-write.ts
+  // Last tested: 2026-03-17 — all three still return 401.
 
   // ========== UPSERT OPPORTUNITY ==========
 
   server.tool(
     "ghl_upsert_opportunity",
-    "Create or update an opportunity. Matches by pipeline and contact — creates if not found, updates if found.",
+    "Create or update an opportunity. Matches by pipeline and contact -- creates if not found, updates if found.",
     {
+      id: z.string().optional().describe("Opportunity ID (for updating a specific opportunity)"),
       name: z.string().describe("Opportunity name"),
       pipelineId: z.string().describe("Pipeline ID"),
       pipelineStageId: z.string().describe("Pipeline stage ID"),
       contactId: z.string().optional().describe("Associated contact ID"),
-      value: z.number().optional().describe("Deal value"),
-      status: z.string().optional().describe("Status"),
+      monetaryValue: z.number().optional().describe("Deal monetary value"),
+      assignedTo: z.string().optional().describe("User ID to assign to"),
+      status: z.string().optional().describe("Status (open, won, lost, abandoned)"),
+      followers: z.string().optional().describe("User ID to add/remove as follower"),
+      followersActionType: z.enum(["add", "remove"]).optional().describe("Whether to add or remove followers"),
+      isRemoveAllFollowers: z.boolean().optional().describe("Remove all existing followers"),
+      lostReasonId: z.string().optional().describe("Lost reason ID (when status is 'lost')"),
       locationId: z.string().optional().describe("Target location"),
     },
     async (args) => {
@@ -294,6 +287,24 @@ export function registerOpportunitiesTools(server: McpServer, env: Env) {
         const client = await resolveClient(env);
         const result = await client.opportunities.removeOpportunityFollowers(opportunityId, { followers });
         return ok(`Followers removed!\n\n${JSON.stringify(result, null, 2)}`);
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_get_lost_reason",
+    "Get the lost reason configuration for a pipeline.",
+    {
+      pipelineId: z.string().describe("Pipeline ID"),
+      locationId: z.string().optional().describe("Target location"),
+    },
+    async ({ pipelineId, locationId }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        const result = await client.opportunities.getLostReason(pipelineId, locationId);
+        return ok(JSON.stringify(result, null, 2));
       } catch (e: any) {
         return err(e);
       }

@@ -194,4 +194,39 @@ export function registerSaaSTools(server: McpServer, env: Env) {
       }
     }
   );
+
+  server.tool(
+    "ghl_saas_get_wallet_balance",
+    "Get the wallet balance for a SaaS location.",
+    {
+      locationId: z.string().describe("Location ID"),
+    },
+    async ({ locationId }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        const result = await client.saas.getLocationWalletBalance(locationId);
+        return ok(JSON.stringify(result, null, 2));
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_saas_update_wallet_balance",
+    "Update the wallet balance for a SaaS location.",
+    {
+      locationId: z.string().describe("Location ID"),
+      data: z.record(z.any()).describe("Wallet balance update data"),
+    },
+    async ({ locationId, data }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        const result = await client.saas.updateLocationWalletBalance(locationId, data);
+        return ok(`Wallet balance updated!\n\n${JSON.stringify(result, null, 2)}`);
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
 }

@@ -18,6 +18,7 @@ import { registerSaaSTools } from "./saas";
 import { registerMarketplaceTools } from "./marketplace";
 import { registerKnowledgeBaseTools } from "./knowledge-base";
 import { registerErrorTools } from "./errors";
+import { registerWorkflowBuilderTools } from "./workflow-builder";
 
 export function registerAllTools(server: McpServer, env: Env) {
   registerAccountsTools(server, env);
@@ -37,4 +38,5 @@ export function registerAllTools(server: McpServer, env: Env) {
   registerMarketplaceTools(server, env);
   registerKnowledgeBaseTools(server, env);
   registerErrorTools(server, env);
+  registerWorkflowBuilderTools(server, env);
 }

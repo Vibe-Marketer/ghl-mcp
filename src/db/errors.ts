@@ -34,12 +34,22 @@ export async function logError(
   args?: Record<string, unknown>
 ): Promise<string> {
   const id = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
+  // MED-4 fix: truncate args to prevent unbounded storage
+  const argsStr = args ? JSON.stringify(args).slice(0, 2048) : null;
   await db
     .prepare(
       `INSERT INTO mcp_errors (id, tool_name, error_text, args) VALUES (?, ?, ?, ?)`
     )
-    .bind(id, toolName, errorText, args ? JSON.stringify(args) : null)
+    .bind(id, toolName, errorText, argsStr)
     .run();
+
+  // MED-4 fix: auto-purge errors older than 30 days
+  try {
+    await db.prepare("DELETE FROM mcp_errors WHERE created_at < datetime('now', '-30 days')").run();
+  } catch {
+    // Non-fatal — don't block error logging
+  }
+
   return id;
 }
 

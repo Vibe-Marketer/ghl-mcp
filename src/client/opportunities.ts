@@ -30,29 +30,76 @@ export function opportunityMethods(client: BaseGHLClient) {
       });
     },
 
+    async searchOpportunitiesPost(opts: {
+      locationId?: string;
+      query?: string;
+      limit?: number;
+      page?: number;
+      searchAfter?: string[];
+      additionalDetails?: {
+        notes?: boolean;
+        tasks?: boolean;
+        calendarEvents?: boolean;
+        unReadConversations?: boolean;
+      };
+    }) {
+      const body: Record<string, any> = {
+        locationId: opts.locationId || client.locationId,
+      };
+      if (opts.query) body.query = opts.query;
+      if (opts.limit !== undefined) body.limit = opts.limit;
+      if (opts.page !== undefined) body.page = opts.page;
+      if (opts.searchAfter) body.searchAfter = opts.searchAfter;
+      if (opts.additionalDetails) body.additionalDetails = opts.additionalDetails;
+      return client.request<{ opportunities: any[]; meta?: any }>("POST", `/opportunities/search`, {
+        body,
+        version: "2021-07-28",
+      });
+    },
+
     async getOpportunity(opportunityId: string) {
       return client.request<{ opportunity: any }>("GET", `/opportunities/${opportunityId}`, {
         version: "2021-07-28",
       });
     },
 
-    async createOpportunity(data: any) {
+    async createOpportunity(data: {
+      pipelineId: string;
+      name: string;
+      pipelineStageId: string;
+      status?: string;
+      contactId?: string;
+      monetaryValue?: number;
+      assignedTo?: string;
+      customFields?: Array<{ id?: string; key?: string; field_value: any }>;
+      locationId?: string;
+    }) {
       return client.request<{ opportunity: any }>("POST", `/opportunities/`, {
         body: { ...data, locationId: data.locationId || client.locationId },
         version: "2021-07-28",
       });
     },
 
-    async updateOpportunity(opportunityId: string, data: any) {
+    async updateOpportunity(opportunityId: string, data: {
+      pipelineId?: string;
+      name?: string;
+      pipelineStageId?: string;
+      status?: string;
+      monetaryValue?: number;
+      assignedTo?: string;
+      customFields?: Array<{ id?: string; key?: string; field_value: any }>;
+    }) {
       return client.request<{ opportunity: any }>("PUT", `/opportunities/${opportunityId}`, {
         body: data,
         version: "2021-07-28",
       });
     },
 
-    async updateOpportunityStatus(opportunityId: string, status: string) {
+    async updateOpportunityStatus(opportunityId: string, status: string, lostReasonId?: string) {
+      const body: Record<string, string> = { status };
+      if (lostReasonId) body.lostReasonId = lostReasonId;
       return client.request<{ opportunity: any }>("PUT", `/opportunities/${opportunityId}/status`, {
-        body: { status },
+        body,
         version: "2021-07-28",
       });
     },
@@ -97,7 +144,20 @@ export function opportunityMethods(client: BaseGHLClient) {
       });
     },
 
-    async upsertOpportunity(data: any) {
+    async upsertOpportunity(data: {
+      id?: string;
+      pipelineId: string;
+      name: string;
+      pipelineStageId: string;
+      status?: string;
+      monetaryValue?: number;
+      assignedTo?: string;
+      followers?: string;
+      followersActionType?: string;
+      isRemoveAllFollowers?: boolean;
+      lostReasonId?: string;
+      locationId?: string;
+    }) {
       return client.request<any>("POST", `/opportunities/upsert`, {
         body: { ...data, locationId: data.locationId || client.locationId },
         version: "2021-07-28",
@@ -114,6 +174,15 @@ export function opportunityMethods(client: BaseGHLClient) {
     async removeOpportunityFollowers(opportunityId: string, data: any) {
       return client.request<any>("DELETE", `/opportunities/${opportunityId}/followers`, {
         body: data,
+        version: "2021-07-28",
+      });
+    },
+
+    // ========== LOST REASON ==========
+
+    async getLostReason(pipelineId: string, locationId?: string) {
+      return client.request<any>("GET", `/opportunities/pipelines/${pipelineId}/lost-reason`, {
+        query: { locationId: locationId || client.locationId },
         version: "2021-07-28",
       });
     },

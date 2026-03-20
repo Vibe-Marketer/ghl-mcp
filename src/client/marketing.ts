@@ -464,5 +464,138 @@ export function marketingMethods(client: BaseGHLClient) {
         version: "2021-07-28",
       });
     },
+
+    // ========== CATEGORY QUEUE ==========
+
+    async listAvailableQueueCategories() {
+      return client.request<any>("GET", `/social-media-posting/category/queues/available-categories`, {
+        version: "2021-07-28",
+      });
+    },
+
+    async createCategoryQueue(data: any) {
+      return client.request<any>("POST", `/social-media-posting/category/queues`, {
+        body: data,
+        version: "2021-07-28",
+      });
+    },
+
+    async listCategoryQueues(data: any = {}) {
+      return client.request<any>("POST", `/social-media-posting/category/queues/list`, {
+        body: data,
+        version: "2021-07-28",
+      });
+    },
+
+    async getCategoryQueue(queueId: string) {
+      return client.request<any>("GET", `/social-media-posting/category/queues/${queueId}`, {
+        version: "2021-07-28",
+      });
+    },
+
+    async updateCategoryQueue(queueId: string, data: any) {
+      return client.request<any>("PUT", `/social-media-posting/category/queues/${queueId}`, {
+        body: data,
+        version: "2021-07-28",
+      });
+    },
+
+    async listQueueItems(queueId: string, data: any = {}) {
+      return client.request<any>("POST", `/social-media-posting/category/queues/${queueId}/items`, {
+        body: data,
+        version: "2021-07-28",
+      });
+    },
+
+    async startQueueEditSession(queueId: string) {
+      return client.request<any>("POST", `/social-media-posting/category/queues/${queueId}/edit/start`, {
+        body: {},
+        version: "2021-07-28",
+      });
+    },
+
+    async saveQueueEditSession(queueId: string) {
+      return client.request<any>("POST", `/social-media-posting/category/queues/${queueId}/edit/save`, {
+        body: {},
+        version: "2021-07-28",
+      });
+    },
+
+    async discardQueueEditSession(queueId: string) {
+      return client.request<any>("POST", `/social-media-posting/category/queues/${queueId}/edit/discard`, {
+        body: {},
+        version: "2021-07-28",
+      });
+    },
+
+    async getQueueEditCalendar(queueId: string, data: any = {}) {
+      return client.request<any>("POST", `/social-media-posting/category/queues/${queueId}/edit/calendar`, {
+        body: data,
+        version: "2021-07-28",
+      });
+    },
+
+    async getQueueSlots(queueId: string, data: any = {}) {
+      return client.request<any>("POST", `/social-media-posting/category/queues/${queueId}/slots`, {
+        body: data,
+        version: "2021-07-28",
+      });
+    },
+
+    async deleteQueueItem(queueId: string, itemId: string) {
+      return client.request<any>("DELETE", `/social-media-posting/category/queues/${queueId}/items/${itemId}`, {
+        version: "2021-07-28",
+      });
+    },
+
+    async updateQueueItem(queueId: string, itemId: string, data: any) {
+      return client.request<any>("PUT", `/social-media-posting/category/queues/${queueId}/items/${itemId}`, {
+        body: data,
+        version: "2021-07-28",
+      });
+    },
+
+    async getQueueCalendar(queueId: string, data: any = {}) {
+      return client.request<any>("POST", `/social-media-posting/category/queues/${queueId}/calendar`, {
+        body: data,
+        version: "2021-07-28",
+      });
+    },
+
+    async deleteActiveQueuePost(postId: string) {
+      return client.request<any>("DELETE", `/social-media-posting/category/queues/${postId}/active-post`, {
+        version: "2021-07-28",
+      });
+    },
+
+    async resetQueueItem(queueId: string, itemId: string) {
+      return client.request<any>("PUT", `/social-media-posting/category/queues/${queueId}/items/${itemId}/reset`, {
+        body: {},
+        version: "2021-07-28",
+      });
+    },
+
+    async cloneQueueItem(queueId: string, itemId: string) {
+      return client.request<any>("POST", `/social-media-posting/category/queues/${queueId}/items/${itemId}/clone`, {
+        body: {},
+        version: "2021-07-28",
+      });
+    },
+
+    async createQueueItem(queueId: string, data: any) {
+      return client.request<any>("POST", `/social-media-posting/category/queues/${queueId}/create/item`, {
+        body: data,
+        version: "2021-07-28",
+      });
+    },
+
+    // ========== EMAIL STATISTICS ==========
+
+    async getEmailCampaignStats(campaignId: string, locationId?: string) {
+      return client.request<any>("GET", `/emails/campaign/${campaignId}/stats`, {
+        query: { locationId: locationId || client.locationId },
+        version: "2021-07-28",
+      });
+    },
   };
 }

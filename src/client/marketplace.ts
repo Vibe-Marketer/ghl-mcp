@@ -47,5 +47,21 @@ export function marketplaceMethods(client: BaseGHLClient) {
         version: "2021-07-28",
       });
     },
+
+    // ========== APP BILLING ==========
+
+    async getRebillingConfig(companyId: string, appId: string) {
+      return client.request<any>("GET", `/app-marketplace/billing/rebilling/${appId}`, {
+        query: { companyId },
+        version: "2021-07-28",
+      });
+    },
+
+    async migrateExternalAuth(data: any) {
+      return client.request<any>("POST", `/app-marketplace/external-auth/migrate`, {
+        body: data,
+        version: "2021-07-28",
+      });
+    },
   };
 }

@@ -1,254 +1,473 @@
-# GHL MCP Server v2
+# DLF Agency MCP Server
 
-A remote [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that gives AI agents full control over [GoHighLevel](https://www.gohighlevel.com/) — deployed as a Cloudflare Worker with OAuth 2.1 authentication.
+A remote [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that gives AI agents full control over [GoHighLevel](https://www.gohighlevel.com/). Deployed as a Cloudflare Worker with user-key authentication, per-user scopes, multi-account support, and an admin panel.
 
-Built with a modular architecture: Hono routing, category-based tool modules, and a composable GHL API client covering **254 tools** across the entire GHL API v2 surface.
+**508 tools** across 18 domain modules covering the entire GHL API v2 surface + internal workflow builder API.
+
+**Live at:** `https://dlf-agency.skool-203.workers.dev`
 
 ## What It Does
 
-Connect any MCP-compatible AI client (Claude Desktop, Cursor, Windsurf, custom agents) to your GoHighLevel account. The AI can then manage your entire GHL workspace — contacts, calendars, conversations, pipelines, invoices, workflows, AI agents, and more — through natural language.
-
-**Example prompts once connected:**
+Connect any MCP-compatible AI client (Claude Code, Claude Desktop, Cursor, Windsurf, custom agents) to your GoHighLevel account. The AI can then manage your entire GHL workspace through natural language:
 
 - *"Show me all appointments for this week"*
 - *"Create a new contact named John Smith with email john@example.com"*
 - *"Search my pipeline for deals over $5,000"*
-- *"Send a message to the conversation with contact ID xyz"*
 - *"Create a Conversation AI agent for SMS auto-replies"*
 - *"List all invoices from the last 30 days"*
+- *"Build a workflow that triggers on form submission"*
 
-## Architecture
+## Quick Start (Connecting as a User)
 
-```
-MCP Client → HTTPS → Cloudflare Worker
-                       │
-                       ├─ OAuthProvider (authentication layer)
-                       │    ├─ /mcp        → McpAgent Durable Object (254 tools)
-                       │    ├─ /authorize  → OAuth approval flow
-                       │    ├─ /token      → Token endpoint
-                       │    └─ /register   → Client registration
-                       │
-                       ├─ Hono App (HTTP routes)
-                       │    ├─ /health     → Health check
-                       │    └─ /*          → 404 catch-all
-                       │
-                       ├─ D1 Database      → Multi-account management
-                       ├─ KV Namespace     → OAuth state/tokens
-                       └─ Durable Objects  → MCP session persistence
-```
+### 1. Get Your API Key
 
-## Requirements
+Go to `https://dlf-agency.skool-203.workers.dev/signup` and register. Your key (`uk_...`) is shown **once** -- copy it immediately. An admin must approve your account before it works.
 
-- [Cloudflare Workers](https://workers.cloudflare.com/) account (free tier works)
-- [GoHighLevel](https://www.gohighlevel.com/) account with API access
-- GHL Private Integration Token ([how to get one](https://highlevel.stoplight.io/docs/integrations/))
-- [Node.js](https://nodejs.org/) 18+ and npm
+### 2. Connect Your MCP Client
 
-## Setup
-
-### 1. Clone and Install
-
+**Claude Code:**
 ```bash
-git clone https://github.com/Bladefitness/ghl-mcp-v2.git
-cd ghl-mcp-v2
-npm install
+claude mcp add --transport http \
+  --header "X-User-Key: uk_YOUR_KEY_HERE" \
+  dlf-agency https://dlf-agency.skool-203.workers.dev/mcp
 ```
 
-### 2. Configure Cloudflare Resources
-
-Create the required D1 database and KV namespace:
-
-```bash
-# Create D1 database
-npx wrangler d1 create ghl-accounts
-
-# Create KV namespace
-npx wrangler kv namespace create OAUTH_KV
-```
-
-Update `wrangler.toml` with the IDs returned by each command:
-
-```toml
-[[d1_databases]]
-binding = "GHL_DB"
-database_name = "ghl-accounts"
-database_id = "YOUR_D1_DATABASE_ID"
-
-[[kv_namespaces]]
-binding = "OAUTH_KV"
-id = "YOUR_KV_NAMESPACE_ID"
-```
-
-### 3. Set Secrets
-
-```bash
-# Your GHL Private Integration Token
-npx wrangler secret put GHL_API_KEY
-
-# Your GHL Location ID
-npx wrangler secret put GHL_LOCATION_ID
-```
-
-### 4. Deploy
-
-```bash
-npm run deploy
-```
-
-Your server will be live at `https://ghl-mcp-v2.<your-subdomain>.workers.dev`.
-
-### 5. Connect Your MCP Client
-
-Add to your MCP client configuration (e.g., Claude Desktop `claude_desktop_config.json`):
-
+**Claude Desktop / Cursor / Any MCP Client (`.mcp.json`):**
 ```json
 {
   "mcpServers": {
-    "ghl": {
-      "url": "https://ghl-mcp-v2.<your-subdomain>.workers.dev/mcp",
-      "transport": "streamable-http"
+    "dlf-agency": {
+      "type": "http",
+      "url": "https://dlf-agency.skool-203.workers.dev/mcp",
+      "headers": {
+        "X-User-Key": "uk_YOUR_KEY_HERE"
+      }
     }
   }
 }
 ```
 
-## Tool Categories (254 Tools)
+### 3. Start Using It
 
-| Category | Tools | Description |
-|----------|-------|-------------|
-| **Accounts** | 5 | Multi-account management — add, list, switch, remove sub-accounts |
-| **Calendars** | 11 | Calendars, appointments, blocked slots, calendar groups |
-| **Contacts** | 19 | Contact CRUD, notes, tasks, bulk import, duplicate detection |
-| **Conversations** | 7 | Conversations, messages, search |
-| **Opportunities** | 8 | Opportunity pipeline management, deal tracking |
-| **Payments** | 33 | Invoices, orders, transactions, subscriptions, store, shipping |
-| **Marketing** | 24 | Campaigns, social media, email builder, funnels, links |
-| **Automation** | 5 | Workflows, forms, surveys |
-| **AI Agents** | 16 | Voice AI agents + Conversation AI agents (text-based) |
-| **Locations** | 27 | Locations, users, businesses, custom fields, tags |
-| **Content** | 34 | Blogs, media, documents, menus, snapshots, templates |
-| **Misc** | 65 | Associations, companies, phone, products, custom objects |
+Once connected, ask your AI to do anything in GHL:
+```
+"List all contacts tagged 'hot-lead'"
+"Send an SMS to contact ID xyz saying 'Hey, following up on our call'"
+"Create a calendar event for tomorrow at 2pm"
+```
+
+## Architecture
+
+```
+MCP Client (Claude Code, Cursor, etc.)
+  │
+  │  HTTPS + X-User-Key header
+  ▼
+Cloudflare Worker (outer wrapper)
+  │
+  ├── Validates API key against D1 (SHA-256 hashed)
+  ├── Stores auth context in KV (scopes + allowed accounts)
+  ├── Passes user ID via URL query param
+  │
+  ▼
+GHLMcpAgent (Durable Object)
+  │
+  ├── Reads auth from KV (scopes, allowed accounts)
+  ├── Enforces per-tool scope checks (default-deny)
+  ├── resolveClient() → picks correct GHL API key for the location
+  │
+  ▼
+GoHighLevel REST API (services.leadconnectorhq.com)
+```
+
+### Why KV for Auth?
+
+The MCP SDK's `McpAgent.serve()` internally creates a WebSocket upgrade request that strips all custom headers. Only `x-partykit-room` (session ID) and `Upgrade` survive. So we store auth context in KV keyed by user ID, and the Durable Object reads it from there.
+
+## All Routes
+
+| Route | Method | Auth | Description |
+|-------|--------|------|-------------|
+| `/health` | GET | None | Health check -- returns server name + version |
+| `/mcp` | POST | `X-User-Key` header | MCP endpoint -- all tool calls go here |
+| `/signup` | GET/POST | None (rate limited) | Self-service user registration |
+| `/admin` | GET | Password | Admin panel -- manage users, accounts, scopes |
+| `/install` | GET | None | Returns GHL OAuth install URL for adding locations |
+| `/callback` | GET | None | OAuth callback -- exchanges auth code for tokens |
+| `/refresh` | POST | `X-Admin-Pin` header | Force-refresh all OAuth location tokens |
+| `/admin/agency-token` | GET/POST | `X-Admin-Pin` header | View/store agency PIV token |
+| `/authorize` | GET | PIN, session, or user key | OAuth auto-approve |
+| `/register` | POST | PIN or user key | OAuth client registration |
+
+## Authentication
+
+### User-Key Auth (Primary -- for MCP clients)
+
+Every request to `/mcp` must include an API key:
+
+```
+Header: X-User-Key: uk_58894012-805b-4081-89c8-2ad0391e6c2b
+```
+
+Keys are generated at `/signup` or by the admin. They are SHA-256 hashed before storage -- the raw key is shown once and can never be recovered.
+
+**User lifecycle:**
+1. User registers at `/signup` -> status = `pending`
+2. Admin approves in admin panel -> status = `active`
+3. Admin can disable at any time -> status = `disabled`
+
+**Per-user access control:**
+- **Scopes**: JSON array of tool names the user can call (e.g., `["ghl_get_contact", "ghl_send_message"]`), or `["*"]` for all 508 tools
+- **Allowed Accounts**: JSON array of GHL location IDs the user can access (e.g., `["W7BRJwzJCvFs9r0xZHrE"]`), or `["*"]` for all
+
+### GHL OAuth (for Adding Locations)
+
+To connect a new GHL location (sub-account):
+
+1. Visit `GET /install` -- returns the GHL OAuth chooselocation URL
+2. Open that URL in a browser -- select the GHL location to install
+3. GHL redirects to `/callback?code=xxx`
+4. Server exchanges the code for access + refresh tokens
+5. Tokens are stored in D1 with the location ID
+6. Tokens auto-refresh when they expire (24h lifetime)
+
+This uses the GHL Marketplace OAuth flow with these credentials:
+- **Client ID**: Set via `GHL_CLIENT_ID` secret
+- **Client Secret**: Set via `GHL_CLIENT_SECRET` secret
+- **Redirect URI**: `https://dlf-agency.skool-203.workers.dev/callback`
+
+### Private Integration Tokens (PITs)
+
+For locations that don't use OAuth, you can manually add them with a GHL Private Integration Token:
+
+1. In GHL: Settings > Integrations > Private Integrations > Create
+2. Copy the token
+3. Use the `ghl_add_sub_account` tool or the admin panel to add the location with its PIT
+
+PITs don't expire but also can't auto-refresh. OAuth tokens are preferred.
+
+## Admin Panel
+
+**URL:** `https://dlf-agency.skool-203.workers.dev/admin`
+
+Features:
+- View, create, edit, and delete users
+- Set per-user scopes (which tools they can use)
+- Set per-user account access (which GHL locations they can access)
+- View and manage sub-accounts
+- Scope picker with category presets (Full/Read-Only/None)
+
+Login requires the `ADMIN_PASSWORD` secret.
+
+## Tool Domains (508 Tools)
+
+| Domain | Tools | File | What It Covers |
+|--------|-------|------|---------------|
+| **accounts** | 5 | `accounts.ts` | Sub-account management (add, list, switch, remove) |
+| **ai-agents** | 26 | `ai-agents.ts` | Voice AI, Conversation AI, Agent Studio, call logs |
+| **automation** | 11 | `automation.ts` | Workflows, forms, surveys |
+| **businesses** | 5 | `businesses.ts` | Business CRUD |
+| **calendars** | 56 | `calendars.ts` | Calendars, appointments, groups, resources, services, bookings |
+| **contacts** | 27 | `contacts.ts` | Contacts, notes, tasks, tags, followers, merge |
+| **content** | 41 | `content.ts` | Blogs, media, documents, menus, snapshots, templates |
+| **conversations** | 22 | `conversations.ts` | Messages, calls, transcriptions, attachments |
+| **errors** | 2 | `errors.ts` | View and clear server error logs |
+| **knowledge-base** | 14 | `knowledge-base.ts` | Knowledge bases, FAQs, web crawlers |
+| **locations** | 45 | `locations.ts` | Locations, users, custom fields, tags, business profiles |
+| **marketing** | 70 | `marketing.ts` | Social media, email campaigns, funnels, links, queues |
+| **marketplace** | 9 | `marketplace.ts` | App installations, billing, rebilling |
+| **misc** | 66 | `misc.ts` | Companies, phone numbers, products, custom objects, brands |
+| **opportunities** | 12 | `opportunities.ts` | Deals, pipelines, followers |
+| **payments** | 68 | `payments.ts` | Invoices, orders, subscriptions, estimates, coupons, shipping |
+| **saas** | 13 | `saas.ts` | SaaS rebilling, subscriptions, agency plans, wallets |
+| **workflow-builder** | 16 | `workflow-builder.ts` | Workflow CRUD, triggers, steps, publish/draft (BETA) |
+
+### Beta: Workflow Builder (16 tools)
+
+The workflow builder tools use an **internal GHL API** (`backend.leadconnectorhq.com`) with Firebase authentication. These are not part of the official GHL REST API and may change without notice.
+
+Tools: `ghl_workflow_builder_list`, `ghl_workflow_builder_create`, `ghl_workflow_builder_get`, `ghl_workflow_builder_get_steps`, `ghl_workflow_builder_get_triggers`, `ghl_workflow_builder_update`, `ghl_workflow_builder_save_steps`, `ghl_workflow_builder_publish`, `ghl_workflow_builder_draft`, `ghl_workflow_builder_delete`, `ghl_workflow_builder_create_trigger`, `ghl_workflow_builder_update_trigger`, `ghl_workflow_builder_delete_trigger`, `ghl_workflow_builder_create_folder`, `ghl_workflow_builder_clone`, `ghl_workflow_builder_error_count`
+
+**Status:** Beta. These tools may not work reliably for create/update operations. Read operations (list, get) are stable.
+
+Requires `GHL_FIREBASE_REFRESH_TOKEN` secret to be set.
+
+### Disabled: Pipeline Write Operations
+
+Three pipeline tools are disabled because GHL returns 401 for all token types:
+
+- `ghl_create_pipeline` -- disabled
+- `ghl_update_pipeline` -- disabled
+- `ghl_delete_pipeline` -- disabled
+
+Reading pipelines (`ghl_list_pipelines`, `ghl_get_pipeline`) works fine. The write operations require a separate `opportunities.pipeline.write` scope that GHL doesn't currently expose in Private Integration or OAuth token grants.
+
+Code is preserved in `src/tools/_disabled/pipeline-write.ts` and can be re-enabled when GHL fixes this.
+
+## Sub-Account Management
+
+The server supports multiple GHL locations (sub-accounts). Each has its own API key stored in D1.
+
+**Resolution order** (when a tool is called):
+1. If `locationId` is passed in the tool args -> use that location's key from D1
+2. If no `locationId` -> use the default account from D1
+3. If no default in D1 -> fall back to `GHL_API_KEY` + `GHL_LOCATION_ID` env vars
+
+**Token types:**
+- **OAuth tokens**: Have `refresh_token` + `expires_at`. Auto-refresh before expiry.
+- **Private Integration tokens**: Static, never expire, no refresh needed.
 
 ## Project Structure
 
 ```
-ghl-mcp-v2/
+dlf-ghl-mcp-server/
 ├── src/
-│   ├── index.ts                 # Worker entry: OAuthProvider + Hono + McpAgent export
-│   ├── types.ts                 # Shared type definitions (Env, SubAccount, etc.)
-│   ├── config.ts                # Constants: API URLs, versions, server metadata
+│   ├── index.ts                    # Worker entry: auth wrapper + GHLMcpAgent DO
+│   ├── types.ts                    # Env, User, SubAccount, ApiVersion types
+│   ├── config.ts                   # API base URL, versions, MCP server metadata
 │   │
-│   ├── client/                  # GHL API client (composable, category-based)
-│   │   ├── index.ts             # GHLClient class — composes all category mixins
-│   │   ├── base.ts              # BaseGHLClient — core HTTP request infrastructure
-│   │   ├── calendars.ts         # Calendar, appointment, blocked slot methods
-│   │   ├── contacts.ts          # Contact, note, task methods
-│   │   ├── conversations.ts     # Conversation and message methods
-│   │   ├── opportunities.ts     # Opportunity and pipeline methods
-│   │   ├── payments.ts          # Invoice, order, transaction, store methods
-│   │   ├── marketing.ts         # Campaign, social, email, funnel methods
-│   │   ├── automation.ts        # Workflow, form, survey methods
-│   │   ├── ai-agents.ts         # Voice AI + Conversation AI agent methods
-│   │   ├── locations.ts         # Location, user, business, custom field methods
-│   │   ├── content.ts           # Blog, media, document, template methods
-│   │   └── misc.ts              # Association, company, phone, product methods
+│   ├── client/                     # GHL API client layer (makes HTTP calls)
+│   │   ├── base.ts                 # BaseGHLClient -- fetch wrapper with auth headers
+│   │   ├── index.ts                # GHLClient -- composes all 16 domain factories
+│   │   ├── ai-agents.ts            # Voice AI, Conversation AI, Agent Studio
+│   │   ├── automation.ts           # Workflows, forms, surveys
+│   │   ├── businesses.ts           # Business CRUD
+│   │   ├── calendars.ts            # Calendars, events, bookings, services
+│   │   ├── contacts.ts             # Contacts, notes, tasks, tags
+│   │   ├── content.ts              # Blogs, media, documents, menus, snapshots
+│   │   ├── conversations.ts        # Messages, calls, transcriptions
+│   │   ├── knowledge-base.ts       # KBs, FAQs, crawlers
+│   │   ├── locations.ts            # Locations, users, custom fields
+│   │   ├── marketing.ts            # Social, email, campaigns, funnels, links
+│   │   ├── marketplace.ts          # Billing, app installations
+│   │   ├── misc.ts                 # Companies, phone, products, objects, brands
+│   │   ├── opportunities.ts        # Opportunities, pipelines
+│   │   ├── payments.ts             # Invoices, orders, subscriptions, coupons
+│   │   ├── saas.ts                 # SaaS rebilling, wallets
+│   │   └── workflow-builder.ts     # Internal GHL API (Firebase auth) -- BETA
 │   │
-│   ├── tools/                   # MCP tool registrations (category-based)
-│   │   ├── index.ts             # registerAllTools() — orchestrates all categories
-│   │   ├── _helpers.ts          # ok(), err(), resolveClient() shared helpers
-│   │   ├── accounts.ts          # Sub-account management tools
-│   │   ├── calendars.ts         # Calendar tools
-│   │   ├── contacts.ts          # Contact tools
-│   │   ├── conversations.ts     # Conversation tools
-│   │   ├── opportunities.ts     # Opportunity tools
-│   │   ├── payments.ts          # Payment tools
-│   │   ├── marketing.ts         # Marketing tools
-│   │   ├── automation.ts        # Automation tools
-│   │   ├── ai-agents.ts         # AI Agent tools
-│   │   ├── locations.ts         # Location tools
-│   │   ├── content.ts           # Content tools
-│   │   └── misc.ts              # Miscellaneous tools
+│   ├── tools/                      # MCP tool registrations (Zod schemas + handlers)
+│   │   ├── index.ts                # registerAllTools() -- calls all 18 domain modules
+│   │   ├── _helpers.ts             # ok(), err(), resolveClient() shared utilities
+│   │   ├── _disabled/
+│   │   │   └── pipeline-write.ts   # Pipeline CRUD (disabled -- GHL returns 401)
+│   │   ├── accounts.ts             # 5 tools
+│   │   ├── ai-agents.ts            # 26 tools
+│   │   ├── automation.ts           # 11 tools
+│   │   ├── businesses.ts           # 5 tools
+│   │   ├── calendars.ts            # 56 tools
+│   │   ├── contacts.ts             # 27 tools
+│   │   ├── content.ts              # 41 tools
+│   │   ├── conversations.ts        # 22 tools
+│   │   ├── errors.ts               # 2 tools
+│   │   ├── knowledge-base.ts       # 14 tools
+│   │   ├── locations.ts            # 45 tools
+│   │   ├── marketing.ts            # 70 tools
+│   │   ├── marketplace.ts          # 9 tools
+│   │   ├── misc.ts                 # 66 tools
+│   │   ├── opportunities.ts        # 12 tools
+│   │   ├── payments.ts             # 68 tools
+│   │   ├── saas.ts                 # 13 tools
+│   │   └── workflow-builder.ts     # 16 tools (BETA)
 │   │
 │   ├── db/
-│   │   └── accounts.ts          # D1 database helpers for multi-account management
+│   │   ├── accounts.ts             # D1: sub_accounts + oauth_tokens tables
+│   │   ├── users.ts                # D1: users table, API key hashing
+│   │   └── errors.ts               # D1: error capture table
+│   │
+│   ├── handlers/
+│   │   ├── admin.ts                # Admin panel (HTML dashboard + REST API)
+│   │   ├── oauth-callback.ts       # GHL OAuth code exchange + token storage
+│   │   └── register.ts             # User self-registration form
 │   │
 │   └── utils/
-│       ├── index.ts             # Barrel export
-│       ├── logger.ts            # Structured JSON logging with sensitive param redaction
-│       └── errors.ts            # GHLError class with status codes
+│       ├── errors.ts               # GHLError class (statusCode + details)
+│       ├── logger.ts               # Structured JSON logger with field redaction
+│       ├── rate-limit.ts           # KV-based sliding window rate limiter
+│       └── webhook.ts              # Optional error webhook sender
 │
-├── wrangler.toml                # Cloudflare Worker configuration
-├── tsconfig.json                # TypeScript configuration
-├── package.json                 # Dependencies and scripts
-├── CONTRIBUTING.md              # Contribution guidelines
-├── AGENTS.md                    # AI agent coding guidelines
-├── LICENSE                      # Apache 2.0
-└── .gitignore
+├── scripts/
+│   ├── deploy.sh                   # Full deploy pipeline (both workers)
+│   ├── check-duplicates.sh         # Detect duplicate tool names (crash prevention)
+│   ├── count-tools.sh              # Tool count per domain (--detail for names)
+│   ├── add-domain.sh               # Scaffold new domain module pair
+│   └── add-tool.sh                 # Add tool to existing domain
+│
+├── migrations/
+│   ├── 0001_create_users_table.sql
+│   └── 0002_add_allowed_accounts.sql
+│
+├── wrangler.toml                   # Cloudflare Worker config (bindings, DO, D1, KV)
+├── tsconfig.json
+├── package.json
+└── SERVER-MAP.md                   # Quick reference with all tool names + scope presets
 ```
 
-## Multi-Account Support
+### Two-Layer Module Pattern
 
-The server supports managing multiple GHL locations through a built-in D1 database. AI agents can dynamically switch between accounts:
+Every GHL API domain has a parallel pair of files:
 
 ```
-"Add my second location: name 'Sales Team', ID 'abc123', token 'pit-xyz...'"
-"Set 'Sales Team' as default"
-"List all contacts from location abc123"
+src/client/<domain>.ts   ->  Factory function returning async methods (HTTP calls)
+src/tools/<domain>.ts    ->  registerXxxTools(server, env) registering MCP tools
 ```
 
-Accounts are stored in a `sub_accounts` table with encrypted tokens. When no specific location is provided, the server falls back to the default account, then to environment variables.
+**Client layer**: Each file exports a `domainMethods(client)` factory. `GHLClient` composes all 16 factories in its constructor.
+
+**Tools layer**: Each file exports a `registerXxxTools(server, env)` function. `registerAllTools()` calls all 18 registration functions during `GHLMcpAgent.init()`.
+
+## Deployment
+
+### Requirements
+
+- [Cloudflare Workers](https://workers.cloudflare.com/) account
+- [Node.js](https://nodejs.org/) 18+
+- A GHL account with API access
+- GHL OAuth app credentials (for OAuth install flow)
+
+### Setup from Scratch
+
+```bash
+git clone https://github.com/Bladefitness/dlf-ghl-mcp.git
+cd dlf-ghl-mcp/dlf-ghl-mcp-server
+npm install
+
+# Create Cloudflare resources
+npx wrangler d1 create ghl-accounts
+npx wrangler kv namespace create OAUTH_KV
+
+# Update wrangler.toml with the IDs from above
+
+# Set required secrets
+echo "your-admin-password" | npx wrangler secret put ADMIN_PASSWORD
+echo "your-admin-pin" | npx wrangler secret put ADMIN_PIN
+echo "your-ghl-client-id" | npx wrangler secret put GHL_CLIENT_ID
+echo "your-ghl-client-secret" | npx wrangler secret put GHL_CLIENT_SECRET
+
+# Optional: for workflow builder tools
+echo "your-firebase-refresh-token" | npx wrangler secret put GHL_FIREBASE_REFRESH_TOKEN
+
+# Deploy
+npm run deploy
+
+# Verify
+curl https://your-worker.workers.dev/health
+```
+
+### Secrets Reference
+
+| Secret | Required | Purpose |
+|--------|----------|---------|
+| `ADMIN_PASSWORD` | Yes | Admin panel login password |
+| `ADMIN_PIN` | Yes | X-Admin-Pin header for API admin routes |
+| `GHL_CLIENT_ID` | Yes | GHL OAuth app Client ID |
+| `GHL_CLIENT_SECRET` | Yes | GHL OAuth app Client Secret |
+| `GHL_FIREBASE_REFRESH_TOKEN` | No | Firebase refresh token (workflow builder BETA) |
+| `GHL_FIREBASE_TOKEN` | No | Static Firebase ID token (fallback) |
+| `ERROR_WEBHOOK_URL` | No | Webhook URL for error reports |
+
+### Cloudflare Bindings
+
+| Binding | Type | Purpose |
+|---------|------|---------|
+| `MCP_OBJECT` | Durable Object | MCP session persistence (`GHLMcpAgent`) |
+| `GHL_DB` | D1 Database | Users, sub-accounts, OAuth tokens, errors |
+| `OAUTH_KV` | KV Namespace | Auth context, sessions, rate limit counters |
+
+### Deploy Script
+
+```bash
+# Full pipeline: duplicate check -> tsc -> deploy both workers -> health verify
+./scripts/deploy.sh
+
+# Dry run (no actual deploy)
+./scripts/deploy.sh --dry-run
+
+# Deploy only one worker
+./scripts/deploy.sh --one dlf-agency
+```
 
 ## Security
 
-**OAuth 2.1 Authentication** — MCP clients must complete the OAuth flow before accessing any tools. The server supports dynamic client registration, token issuance, and session management via Cloudflare's `@cloudflare/workers-oauth-provider`.
+| Protection | How |
+|-----------|-----|
+| **API key hashing** | SHA-256 hash stored in D1 -- raw key never persisted |
+| **Per-user scopes** | Default-deny: no scopes = no tools. Admin must grant access |
+| **Account isolation** | Users can only access GHL locations in their `allowed_accounts` |
+| **Rate limiting** | 120 req/min on `/mcp`, 5 req/min on `/signup` |
+| **Header sanitization** | Incoming `X-User-Scopes`, `X-User-Allowed-Accounts` stripped to prevent spoofing |
+| **Timing-safe auth** | Admin PIN uses HMAC-SHA256 constant-time comparison |
+| **Session fingerprinting** | Admin sessions bound to IP + User-Agent |
+| **Error redaction** | API keys, tokens, passwords masked in all error logs |
+| **CORS** | Admin routes restricted to same-origin; public routes use wildcard |
+| **Security headers** | `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer` |
 
-**Scoped API Access** — Each GHL Private Integration Token is scoped to a specific location. The server never exposes tokens to MCP clients; all API calls are made server-side.
+## GHL API Versions
 
-**No Shared State** — Each MCP session runs in its own Durable Object instance with isolated SQLite storage. Sessions cannot access each other's data.
+| Version | Used For |
+|---------|----------|
+| `2021-07-28` | Most endpoints (contacts, conversations, invoices, workflows, etc.) |
+| `2021-04-15` | Calendar events, blocked slots, Conversation AI agents, calls, transcriptions |
 
-**Sensitive Param Redaction** — The structured logger automatically redacts `api_key`, `token`, `authorization`, and `password` fields from all log output.
+The correct version is set automatically per endpoint in each client module.
 
-## API Versioning
+## Adding New Tools
 
-The GHL API uses two version headers. This server handles both automatically:
-
-| Endpoints | Version Header |
-|-----------|---------------|
-| Calendar events, blocked slots, Conversation AI agents | `2021-04-15` |
-| Everything else (contacts, invoices, workflows, etc.) | `2021-07-28` |
-
-## Development
+### Add a tool to an existing domain
 
 ```bash
-# Run locally
-npm run dev
+# Scaffold both client method + tool registration
+./scripts/add-tool.sh contacts ghl_archive_contact
 
-# Deploy to Cloudflare
-npm run deploy
-
-# Type check
-npx tsc --noEmit
+# Or manually:
+# 1. Add method to src/client/contacts.ts
+# 2. Add server.tool() to src/tools/contacts.ts
+# 3. Run ./scripts/check-duplicates.sh to verify no name collision
 ```
 
-### Adding New Tools
+### Add a new domain
 
-1. Add the API method to the appropriate `src/client/<category>.ts`
-2. Add the tool registration to `src/tools/<category>.ts`
-3. The tool is automatically included via `registerAllTools()`
+```bash
+# Scaffold the full module pair
+./scripts/add-domain.sh new-domain
 
-### Adding a New Category
+# Then wire it up:
+# 1. Import factory in src/client/index.ts
+# 2. Import register function in src/tools/index.ts
+```
 
-1. Create `src/client/<new-category>.ts` with a mixin function
-2. Import and compose it in `src/client/index.ts`
-3. Create `src/tools/<new-category>.ts` with a registration function
-4. Import and call it in `src/tools/index.ts`
+## D1 Database Schema
 
-## Approximate Costs
+### users
+```sql
+id TEXT PRIMARY KEY,
+name TEXT NOT NULL,
+email TEXT NOT NULL UNIQUE,
+api_key TEXT NOT NULL UNIQUE,           -- SHA-256 hash of uk_<uuid>
+status TEXT DEFAULT 'pending',          -- 'pending' | 'active' | 'disabled'
+scopes TEXT DEFAULT '["*"]',            -- JSON array of tool names or ["*"]
+allowed_accounts TEXT DEFAULT '["*"]',  -- JSON array of location IDs or ["*"]
+created_at TEXT, updated_at TEXT, notes TEXT
+```
 
-| Resource | Free Tier | Paid Tier |
-|----------|-----------|-----------|
-| Workers requests | 100K/day | $0.30/M requests |
-| Durable Objects | - | $0.15/M requests |
+### sub_accounts
+```sql
+id TEXT PRIMARY KEY,                    -- GHL Location ID
+name TEXT NOT NULL,
+api_key TEXT NOT NULL,                  -- Bearer token (PIT or OAuth)
+account_type TEXT DEFAULT 'sub_account', -- 'sub_account' | 'oauth_location'
+is_default INTEGER DEFAULT 0,
+refresh_token TEXT,                     -- OAuth only
+expires_at INTEGER,                     -- Unix timestamp, OAuth only
+notes TEXT, created_at TEXT, updated_at TEXT
+```
+
+## Costs
+
+| Resource | Free Tier | Paid |
+|----------|-----------|------|
+| Workers requests | 100K/day | $0.30/M |
+| Durable Objects | -- | $0.15/M requests |
 | D1 reads | 5M/day | $0.001/M rows |
 | KV reads | 100K/day | $0.50/M reads |
 

@@ -249,5 +249,143 @@ export function calendarMethods(client: BaseGHLClient) {
         version: "2021-04-15",
       });
     },
+
+    // ========== AVAILABILITY SCHEDULES ==========
+
+    async listAvailabilitySchedules(userId: string) {
+      return client.request<any>("GET", `/calendars/availability/schedules`, {
+        query: { userId },
+        version: "2021-07-28",
+      });
+    },
+
+    async getAvailabilitySchedule(scheduleId: string) {
+      return client.request<any>("GET", `/calendars/availability/schedules/${scheduleId}`, {
+        version: "2021-07-28",
+      });
+    },
+
+    async createAvailabilitySchedule(data: any) {
+      return client.request<any>("POST", `/calendars/availability/schedules`, {
+        body: data,
+        version: "2021-07-28",
+      });
+    },
+
+    async updateAvailabilitySchedule(scheduleId: string, data: any) {
+      return client.request<any>("PUT", `/calendars/availability/schedules/${scheduleId}`, {
+        body: data,
+        version: "2021-07-28",
+      });
+    },
+
+    async deleteAvailabilitySchedule(scheduleId: string) {
+      return client.request<any>("DELETE", `/calendars/availability/schedules/${scheduleId}`, {
+        version: "2021-07-28",
+      });
+    },
+
+    async addCalendarToSchedule(scheduleId: string, data: any) {
+      return client.request<any>("POST", `/calendars/availability/schedules/${scheduleId}/calendars`, {
+        body: data,
+        version: "2021-07-28",
+      });
+    },
+
+    async removeCalendarFromSchedule(scheduleId: string, calendarId: string) {
+      return client.request<any>("DELETE", `/calendars/availability/schedules/${scheduleId}/calendars/${calendarId}`, {
+        version: "2021-07-28",
+      });
+    },
+
+    async createCalendarSchedule(calendarId: string, data: any) {
+      return client.request<any>("POST", `/calendars/${calendarId}/availability`, {
+        body: data,
+        version: "2021-07-28",
+      });
+    },
+
+    async getCalendarSchedule(calendarId: string) {
+      return client.request<any>("GET", `/calendars/${calendarId}/availability`, {
+        version: "2021-07-28",
+      });
+    },
+
+    async updateCalendarSchedule(calendarId: string, data: any) {
+      return client.request<any>("PUT", `/calendars/${calendarId}/availability`, {
+        body: data,
+        version: "2021-07-28",
+      });
+    },
+
+    // ========== SERVICE BOOKINGS ==========
+
+    async listServiceBookings(params: any = {}) {
+      return client.request<any>("GET", `/calendars/service-bookings`, {
+        query: { locationId: params.locationId || client.locationId, ...params },
+        version: "2021-07-28",
+      });
+    },
+
+    async createServiceBooking(data: any) {
+      return client.request<any>("POST", `/calendars/service-bookings`, {
+        body: { ...data, locationId: data.locationId || client.locationId },
+        version: "2021-07-28",
+      });
+    },
+
+    async getServiceBooking(bookingId: string) {
+      return client.request<any>("GET", `/calendars/service-bookings/${bookingId}`, {
+        version: "2021-07-28",
+      });
+    },
+
+    async updateServiceBooking(bookingId: string, data: any) {
+      return client.request<any>("PUT", `/calendars/service-bookings/${bookingId}`, {
+        body: data,
+        version: "2021-07-28",
+      });
+    },
+
+    async deleteServiceBooking(bookingId: string) {
+      return client.request<any>("DELETE", `/calendars/service-bookings/${bookingId}`, {
+        version: "2021-07-28",
+      });
+    },
+
+    // ========== SERVICES CATALOG ==========
+
+    async listServices(params: any = {}) {
+      return client.request<any>("GET", `/calendars/services`, {
+        query: { locationId: params.locationId || client.locationId, ...params },
+        version: "2021-07-28",
+      });
+    },
+
+    async createService(data: any) {
+      return client.request<any>("POST", `/calendars/services`, {
+        body: { ...data, locationId: data.locationId || client.locationId },
+        version: "2021-07-28",
+      });
+    },
+
+    async getService(serviceId: string) {
+      return client.request<any>("GET", `/calendars/services/${serviceId}`, {
+        version: "2021-07-28",
+      });
+    },
+
+    async updateService(serviceId: string, data: any) {
+      return client.request<any>("PUT", `/calendars/services/${serviceId}`, {
+        body: data,
+        version: "2021-07-28",
+      });
+    },
+
+    async deleteService(serviceId: string) {
+      return client.request<any>("DELETE", `/calendars/services/${serviceId}`, {
+        version: "2021-07-28",
+      });
+    },
   };
 }

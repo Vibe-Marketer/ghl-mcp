@@ -1078,4 +1078,360 @@ export function registerMarketingTools(server: McpServer, env: Env) {
       }
     }
   );
+
+  // ==========================================================
+  // SOCIAL PLANNER CATEGORY QUEUES
+  // ==========================================================
+
+  server.tool(
+    "ghl_list_available_queue_categories",
+    "List available Social Planner category queue categories.",
+    {
+      locationId: z.string().optional().describe("Target location"),
+    },
+    async ({ locationId }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        const result = await client.marketing.listAvailableQueueCategories();
+        return ok(JSON.stringify(result, null, 2));
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_create_category_queue",
+    "Create a new Social Planner category queue.",
+    {
+      locationId: z.string().optional().describe("Target location"),
+      body: z.record(z.any()).describe("Queue creation data"),
+    },
+    async ({ locationId, body }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        const result = await client.marketing.createCategoryQueue(body);
+        return ok(`Category queue created!\n\n${JSON.stringify(result, null, 2)}`);
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_list_category_queues",
+    "List Social Planner category queues.",
+    {
+      locationId: z.string().optional().describe("Target location"),
+      body: z.record(z.any()).optional().describe("Filter/pagination options"),
+    },
+    async ({ locationId, body }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        const result = await client.marketing.listCategoryQueues(body || {});
+        return ok(JSON.stringify(result, null, 2));
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_get_category_queue",
+    "Get a specific Social Planner category queue by ID.",
+    {
+      queueId: z.string().describe("Queue ID"),
+      locationId: z.string().optional().describe("Target location"),
+    },
+    async ({ queueId, locationId }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        const result = await client.marketing.getCategoryQueue(queueId);
+        return ok(JSON.stringify(result, null, 2));
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_update_category_queue",
+    "Update a Social Planner category queue.",
+    {
+      queueId: z.string().describe("Queue ID"),
+      locationId: z.string().optional().describe("Target location"),
+      body: z.record(z.any()).describe("Updated queue data"),
+    },
+    async ({ queueId, locationId, body }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        const result = await client.marketing.updateCategoryQueue(queueId, body);
+        return ok(`Category queue updated!\n\n${JSON.stringify(result, null, 2)}`);
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_list_queue_items",
+    "List items in a Social Planner category queue.",
+    {
+      queueId: z.string().describe("Queue ID"),
+      locationId: z.string().optional().describe("Target location"),
+      body: z.record(z.any()).optional().describe("Filter/pagination options"),
+    },
+    async ({ queueId, locationId, body }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        const result = await client.marketing.listQueueItems(queueId, body || {});
+        return ok(JSON.stringify(result, null, 2));
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_start_queue_edit_session",
+    "Start an edit session for a Social Planner category queue.",
+    {
+      queueId: z.string().describe("Queue ID"),
+      locationId: z.string().optional().describe("Target location"),
+    },
+    async ({ queueId, locationId }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        const result = await client.marketing.startQueueEditSession(queueId);
+        return ok(`Edit session started!\n\n${JSON.stringify(result, null, 2)}`);
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_save_queue_edit_session",
+    "Save an active edit session for a Social Planner category queue.",
+    {
+      queueId: z.string().describe("Queue ID"),
+      locationId: z.string().optional().describe("Target location"),
+    },
+    async ({ queueId, locationId }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        const result = await client.marketing.saveQueueEditSession(queueId);
+        return ok(`Edit session saved!\n\n${JSON.stringify(result, null, 2)}`);
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_discard_queue_edit_session",
+    "Discard an active edit session for a Social Planner category queue.",
+    {
+      queueId: z.string().describe("Queue ID"),
+      locationId: z.string().optional().describe("Target location"),
+    },
+    async ({ queueId, locationId }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        const result = await client.marketing.discardQueueEditSession(queueId);
+        return ok(`Edit session discarded!\n\n${JSON.stringify(result, null, 2)}`);
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_get_queue_edit_calendar",
+    "Get the calendar view for an active queue edit session.",
+    {
+      queueId: z.string().describe("Queue ID"),
+      locationId: z.string().optional().describe("Target location"),
+      body: z.record(z.any()).optional().describe("Calendar request options"),
+    },
+    async ({ queueId, locationId, body }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        const result = await client.marketing.getQueueEditCalendar(queueId, body || {});
+        return ok(JSON.stringify(result, null, 2));
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_get_queue_slots",
+    "Get available slots for a Social Planner category queue.",
+    {
+      queueId: z.string().describe("Queue ID"),
+      locationId: z.string().optional().describe("Target location"),
+      body: z.record(z.any()).optional().describe("Slot request options"),
+    },
+    async ({ queueId, locationId, body }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        const result = await client.marketing.getQueueSlots(queueId, body || {});
+        return ok(JSON.stringify(result, null, 2));
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_delete_queue_item",
+    "Delete an item from a Social Planner category queue.",
+    {
+      queueId: z.string().describe("Queue ID"),
+      itemId: z.string().describe("Item ID"),
+      locationId: z.string().optional().describe("Target location"),
+    },
+    async ({ queueId, itemId, locationId }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        await client.marketing.deleteQueueItem(queueId, itemId);
+        return ok(`Queue item ${itemId} deleted.`);
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_update_queue_item",
+    "Update an item in a Social Planner category queue.",
+    {
+      queueId: z.string().describe("Queue ID"),
+      itemId: z.string().describe("Item ID"),
+      locationId: z.string().optional().describe("Target location"),
+      body: z.record(z.any()).describe("Updated item data"),
+    },
+    async ({ queueId, itemId, locationId, body }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        const result = await client.marketing.updateQueueItem(queueId, itemId, body);
+        return ok(`Queue item updated!\n\n${JSON.stringify(result, null, 2)}`);
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_get_queue_calendar",
+    "Get the calendar view for a Social Planner category queue.",
+    {
+      queueId: z.string().describe("Queue ID"),
+      locationId: z.string().optional().describe("Target location"),
+      body: z.record(z.any()).optional().describe("Calendar request options"),
+    },
+    async ({ queueId, locationId, body }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        const result = await client.marketing.getQueueCalendar(queueId, body || {});
+        return ok(JSON.stringify(result, null, 2));
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_delete_active_queue_post",
+    "Delete an active post from a Social Planner category queue.",
+    {
+      postId: z.string().describe("Post ID (used as queue ID in path)"),
+      locationId: z.string().optional().describe("Target location"),
+    },
+    async ({ postId, locationId }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        await client.marketing.deleteActiveQueuePost(postId);
+        return ok(`Active queue post ${postId} deleted.`);
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_reset_queue_item",
+    "Reset an item in a Social Planner category queue.",
+    {
+      queueId: z.string().describe("Queue ID"),
+      itemId: z.string().describe("Item ID"),
+      locationId: z.string().optional().describe("Target location"),
+    },
+    async ({ queueId, itemId, locationId }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        const result = await client.marketing.resetQueueItem(queueId, itemId);
+        return ok(`Queue item reset!\n\n${JSON.stringify(result, null, 2)}`);
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_clone_queue_item",
+    "Clone an item in a Social Planner category queue.",
+    {
+      queueId: z.string().describe("Queue ID"),
+      itemId: z.string().describe("Item ID"),
+      locationId: z.string().optional().describe("Target location"),
+    },
+    async ({ queueId, itemId, locationId }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        const result = await client.marketing.cloneQueueItem(queueId, itemId);
+        return ok(`Queue item cloned!\n\n${JSON.stringify(result, null, 2)}`);
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_create_queue_item",
+    "Create a new item in a Social Planner category queue.",
+    {
+      queueId: z.string().describe("Queue ID"),
+      locationId: z.string().optional().describe("Target location"),
+      body: z.record(z.any()).describe("Item creation data"),
+    },
+    async ({ queueId, locationId, body }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        const result = await client.marketing.createQueueItem(queueId, body);
+        return ok(`Queue item created!\n\n${JSON.stringify(result, null, 2)}`);
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
+
+  server.tool(
+    "ghl_get_email_campaign_stats",
+    "Get statistics for a specific email campaign.",
+    {
+      campaignId: z.string().describe("Email campaign ID"),
+      locationId: z.string().optional().describe("Target location"),
+    },
+    async ({ campaignId, locationId }) => {
+      try {
+        const client = await resolveClient(env, locationId);
+        const result = await client.marketing.getEmailCampaignStats(campaignId, locationId);
+        return ok(JSON.stringify(result, null, 2));
+      } catch (e: any) {
+        return err(e);
+      }
+    }
+  );
 }

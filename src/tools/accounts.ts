@@ -4,11 +4,18 @@ import type { Env } from "../types";
 import { ok, err } from "./_helpers";
 import { initDb, getAccountById, getAccountByName } from "../db/accounts";
 
+// HIGH-7 fix: account management tools require admin-level access (wildcard scope + wildcard accounts)
+function isAdminScope(env: Env): boolean {
+  const accounts: string[] | null = (env as any).__allowedAccounts ?? null;
+  return accounts === null || accounts.includes("*");
+}
+
 export function registerAccountsTools(server: McpServer, env: Env) {
   server.tool(
     "ghl_add_sub_account",
     `Register a GHL sub-account. Stores the location ID, name, and API token securely.
-Set isDefault=true to make this the default account for all operations.`,
+Set isDefault=true to make this the default account for all operations.
+(Admin-only: requires wildcard account access.)`,
     {
       locationId: z.string().describe("The GHL Location ID"),
       name: z.string().describe('Friendly name (e.g. "Dr. Smith Dental")'),
@@ -25,6 +32,9 @@ Set isDefault=true to make this the default account for all operations.`,
     },
     async ({ locationId, name, apiKey, accountType, isDefault, notes }) => {
       try {
+        if (!isAdminScope(env)) {
+          return err({ message: "Access denied: account management requires admin privileges." });
+        }
         await initDb(env.GHL_DB);
         if (isDefault) {
           await env.GHL_DB.prepare(
@@ -79,6 +89,9 @@ Set isDefault=true to make this the default account for all operations.`,
     },
     async ({ locationId, name }) => {
       try {
+        if (!isAdminScope(env)) {
+          return err({ message: "Access denied: account management requires admin privileges." });
+        }
         await initDb(env.GHL_DB);
         let account: any = null;
         if (locationId) account = await getAccountById(env.GHL_DB, locationId);
@@ -101,6 +114,9 @@ Set isDefault=true to make this the default account for all operations.`,
     { locationId: z.string().describe("Location ID to remove") },
     async ({ locationId }) => {
       try {
+        if (!isAdminScope(env)) {
+          return err({ message: "Access denied: account management requires admin privileges." });
+        }
         await initDb(env.GHL_DB);
         const account = await getAccountById(env.GHL_DB, locationId);
         if (!account) return err({ message: "Account not found." });
@@ -122,6 +138,9 @@ Set isDefault=true to make this the default account for all operations.`,
     },
     async ({ locationId, apiKey }) => {
       try {
+        if (!isAdminScope(env)) {
+          return err({ message: "Access denied: account management requires admin privileges." });
+        }
         await initDb(env.GHL_DB);
         const account = await getAccountById(env.GHL_DB, locationId);
         if (!account) return err({ message: "Account not found." });
