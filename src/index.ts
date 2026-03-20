@@ -578,25 +578,15 @@ export default {
       return oauthProvider.fetch(cleanRequest, env, ctx);
     }
 
-    // Block open OAuth client registration — allow if admin PIN OR valid user key
+    // OAuth client registration — open per MCP spec (registration only creates
+    // a client_id/secret, it doesn't grant access to any data. Actual access
+    // requires the authorize + token flow which checks user identity.)
+    // Rate limit to prevent abuse.
     if (url.pathname === "/register" || url.pathname.startsWith("/register/")) {
-      const hasPin = await checkAdminPin(request, env);
-      if (!hasPin) {
-        // Also allow if request carries a valid active user key (MCP clients need
-        // to register OAuth clients as part of the standard connection flow)
-        const uk = request.headers.get("X-User-Key") || url.searchParams.get("user_key");
-        let hasValidKey = false;
-        if (uk) {
-          await initUsersDb(env.GHL_DB);
-          const u = await getUserByApiKey(env.GHL_DB, uk);
-          hasValidKey = !!u && u.status === "active";
-        }
-        if (!hasValidKey) {
-          return Response.json(
-            { error: "Unauthorized", hint: "OAuth client registration requires admin PIN or valid user key." },
-            { status: 401, headers: CORS_HEADERS }
-          );
-        }
+      const regIp = getClientIp(request);
+      if (regIp) {
+        const rl = await checkRateLimit(env.OAUTH_KV, `rl:register:${regIp}`, 10, 60);
+        if (!rl.allowed) return rateLimitResponse(rl);
       }
     }
 
