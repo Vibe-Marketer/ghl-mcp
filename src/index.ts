@@ -143,6 +143,13 @@ export class GHLMcpAgent extends McpAgent<Env> {
           allowedAccounts = [];
         }
       }
+    } else {
+      // OAuth-authenticated request (no user key) — the OAuthProvider already
+      // verified the token, so grant full access. Only API-key users have
+      // per-tool scoping. This fixes Claude.ai custom connector integration
+      // where there's no way to pass X-User-Key headers.
+      scopes = ["*"];
+      allowedAccounts = ["*"];
     }
 
     // Atomically set the auth context for this request
