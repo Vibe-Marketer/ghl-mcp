@@ -1,0 +1,51 @@
+# =============================================================================
+# GHL MCP Server — Cloudflare Worker Configuration
+# =============================================================================
+# Copy this file to wrangler.toml and fill in your values.
+# See README.md for full setup instructions.
+# =============================================================================
+
+name = "your-worker-name"                    # Becomes: your-worker-name.<subdomain>.workers.dev
+# account_id = "your-cloudflare-account-id"  # Optional — wrangler auto-detects if you only have one account
+main = "src/index.ts"
+compatibility_date = "2025-03-14"
+compatibility_flags = ["nodejs_compat"]
+
+# -----------------------------------------------------------------------
+# Secrets — set via `wrangler secret put <NAME>`, never hardcode values
+# -----------------------------------------------------------------------
+#
+# Required:
+#   ADMIN_PASSWORD       — Password for the /admin panel (you choose this)
+#   ADMIN_PIN            — PIN for API admin routes (you choose this)
+#   GHL_CLIENT_ID        — GHL OAuth app Client ID
+#   GHL_CLIENT_SECRET    — GHL OAuth app Client Secret
+#
+# Optional:
+#   ERROR_WEBHOOK_URL    — Webhook URL to receive error reports
+#   GHL_FIREBASE_REFRESH_TOKEN — For workflow builder beta tools
+# -----------------------------------------------------------------------
+
+[durable_objects]
+bindings = [{ name = "MCP_OBJECT", class_name = "GHLMcpAgent" }]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["GHLMcpAgent"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = []
+
+# Create with: npx wrangler d1 create ghl-accounts
+# Then paste the database_id from the output below
+[[d1_databases]]
+binding = "GHL_DB"
+database_name = "ghl-accounts"
+database_id = "YOUR_D1_DATABASE_ID"
+
+# Create with: npx wrangler kv namespace create OAUTH_KV
+# Then paste the namespace id from the output below
+[[kv_namespaces]]
+binding = "OAUTH_KV"
+id = "YOUR_KV_NAMESPACE_ID"

@@ -162,6 +162,12 @@ function loginPage(error?: string): string {
 // ---------------------------------------------------------------------------
 
 const DASHBOARD_JS = String.raw`
+// ─── Init ────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  var el = document.getElementById('connect-url');
+  if (el) el.textContent = window.location.origin + '/mcp?user_key=<key>';
+});
+
 // ─── Data ────────────────────────────────────────────────────────────────────
 var allUsers = [], allAccounts = [];
 
@@ -942,7 +948,7 @@ function dashboardPage(): string {
       <div class="api-key-val" id="apikey-display" onclick="copyKey()"></div>
       <div class="copy-hint" id="copy-hint">Click to copy to clipboard</div>
     </div>
-    <div style="font-size:.78rem;color:#64748b">Connect with:<br><code style="color:#93c5fd;font-size:.75rem">https://dlf-agency.skool-203.workers.dev/mcp?user_key=&lt;key&gt;</code></div>
+    <div style="font-size:.78rem;color:#64748b">Connect with:<br><code style="color:#93c5fd;font-size:.75rem" id="connect-url"></code></div>
     <div class="mf"><button class="btn btn-ghost" onclick="copyKey()">Copy Key</button><button class="btn btn-primary" onclick="closeModal('apikey-modal')">Done</button></div>
   </div>
 </div>

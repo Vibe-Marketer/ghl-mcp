@@ -1,18 +1,17 @@
 #!/usr/bin/env bash
-# deploy.sh — Type-check, deploy to both workers, verify health
+# deploy.sh — Type-check and deploy the GHL MCP worker, then verify health
 #
 # Usage:
-#   ./scripts/deploy.sh              Deploy to both workers (dlf-agency + ghl-mcp-v2)
+#   ./scripts/deploy.sh              Deploy the worker
 #   ./scripts/deploy.sh --dry-run    Type-check only, no deploy
-#   ./scripts/deploy.sh --one NAME   Deploy to single worker (dlf-agency or ghl-mcp-v2)
 
 set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$PROJECT_DIR"
 
-DLF_AGENCY_URL="https://dlf-agency.skool-203.workers.dev"
-GHL_MCP_V2_URL="https://ghl-mcp-v2.skool-203.workers.dev"
+# Read worker name from wrangler.toml
+WORKER_NAME=$(grep '^name' wrangler.toml | head -1 | sed 's/name *= *"\(.*\)"/\1/')
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -20,17 +19,15 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 DRY_RUN=false
-TARGET="both"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dry-run) DRY_RUN=true; shift ;;
-    --one) TARGET="$2"; shift 2 ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
 
-echo "=== GHL MCP Server Deploy ==="
+echo "=== GHL MCP Server Deploy (${WORKER_NAME}) ==="
 echo ""
 
 # Step 1: Check for duplicate tool names (fatal)
@@ -67,62 +64,34 @@ fi
 
 # Step 3: Deploy
 echo ""
-echo "[3/4] Deploying..."
-
-deploy_worker() {
-  local name="$1"
-  echo "  Deploying to ${name}..."
-  if npx wrangler deploy --name "$name" 2>&1; then
-    echo -e "  ${GREEN}${name} deployed.${NC}"
-    return 0
-  else
-    echo -e "  ${RED}${name} deploy FAILED.${NC}"
-    return 1
-  fi
-}
-
-if [[ "$TARGET" == "both" ]]; then
-  deploy_worker "dlf-agency"
-  deploy_worker "ghl-mcp-v2"
-elif [[ "$TARGET" == "dlf-agency" || "$TARGET" == "ghl-mcp-v2" ]]; then
-  deploy_worker "$TARGET"
+echo "[3/4] Deploying ${WORKER_NAME}..."
+if npx wrangler deploy 2>&1; then
+  echo -e "  ${GREEN}${WORKER_NAME} deployed.${NC}"
 else
-  echo -e "${RED}Unknown target: ${TARGET}. Use 'dlf-agency' or 'ghl-mcp-v2'.${NC}"
+  echo -e "  ${RED}${WORKER_NAME} deploy FAILED.${NC}"
   exit 1
 fi
 
-# Step 4: Health checks
+# Step 4: Health check
 echo ""
 echo "[4/4] Verifying health..."
 
-check_health() {
-  local url="$1"
-  local name="$2"
-  local status
-  status=$(curl -s -o /dev/null -w "%{http_code}" "${url}/health" --max-time 10 2>/dev/null || echo "000")
-  if [[ "$status" == "200" ]]; then
-    echo -e "  ${GREEN}${name}: OK (${status})${NC}"
+# Get the deployed URL from wrangler output or construct it
+WORKER_URL=$(npx wrangler deployments list --json 2>/dev/null | grep -o 'https://[^"]*workers.dev' | head -1 || true)
+if [[ -z "$WORKER_URL" ]]; then
+  # Fallback: construct from worker name (assumes workers.dev subdomain)
+  echo -e "  ${YELLOW}Could not detect URL automatically. Check health manually:${NC}"
+  echo "  curl https://${WORKER_NAME}.<your-subdomain>.workers.dev/health"
+else
+  STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${WORKER_URL}/health" --max-time 10 2>/dev/null || echo "000")
+  if [[ "$STATUS" == "200" ]]; then
+    echo -e "  ${GREEN}${WORKER_NAME}: OK (${STATUS}) — ${WORKER_URL}${NC}"
   else
-    echo -e "  ${RED}${name}: FAILED (${status})${NC}"
-    echo "  Likely cause: duplicate tool name or registration error."
-    echo "  Check: curl ${url}/health"
-    return 1
+    echo -e "  ${RED}${WORKER_NAME}: FAILED (${STATUS})${NC}"
+    echo "  Check: curl ${WORKER_URL}/health"
+    exit 1
   fi
-}
-
-HEALTH_FAIL=false
-
-if [[ "$TARGET" == "both" || "$TARGET" == "dlf-agency" ]]; then
-  check_health "$DLF_AGENCY_URL" "dlf-agency" || HEALTH_FAIL=true
-fi
-if [[ "$TARGET" == "both" || "$TARGET" == "ghl-mcp-v2" ]]; then
-  check_health "$GHL_MCP_V2_URL" "ghl-mcp-v2" || HEALTH_FAIL=true
 fi
 
 echo ""
-if $HEALTH_FAIL; then
-  echo -e "${RED}Deploy completed but health check failed. Investigate immediately.${NC}"
-  exit 1
-else
-  echo -e "${GREEN}Deploy successful. All health checks passed.${NC}"
-fi
+echo -e "${GREEN}Deploy successful.${NC}"

@@ -75,7 +75,7 @@ function captureError(
           args: safeArgs,
           error_id: errorId,
           timestamp: new Date().toISOString(),
-          source: "ghl-mcp-v2",
+          source: "ghl-mcp",
         });
       }
     } catch {
@@ -243,7 +243,7 @@ function buildAuthPage(clientName: string, queryString: string, error: string): 
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Authorize - DLF Agency MCP</title>
+<title>Authorize - GHL MCP Server</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f172a;color:#e2e8f0;display:flex;justify-content:center;align-items:center;min-height:100vh}
@@ -270,7 +270,7 @@ button{flex:1;padding:10px;border:none;border-radius:6px;font-size:.9rem;font-we
 <body>
 <div class="card">
 <h1>Authorize Access</h1>
-<p class="sub">DLF Agency GHL MCP Server</p>
+<p class="sub">GHL MCP Server</p>
 <div class="app">
 <div class="app-name">${clientName}</div>
 <ul class="app-perms">
@@ -439,7 +439,8 @@ const defaultHandler = {
       "oauth.write", "oauth.readonly",
     ].join(" ");
 
-    const installUrl = `https://marketplace.gohighlevel.com/oauth/chooselocation?response_type=code&redirect_uri=${encodeURIComponent("https://dlf-agency.skool-203.workers.dev/callback")}&client_id=${env.GHL_CLIENT_ID}&scope=${encodeURIComponent(scopes)}`;
+    const callbackUrl = `${url.origin}/callback`;
+    const installUrl = `https://marketplace.gohighlevel.com/oauth/chooselocation?response_type=code&redirect_uri=${encodeURIComponent(callbackUrl)}&client_id=${env.GHL_CLIENT_ID}&scope=${encodeURIComponent(scopes)}`;
 
     return Response.json({ install_url: installUrl }, { headers: CORS_HEADERS });
   }
